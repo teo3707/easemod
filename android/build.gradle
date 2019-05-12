@@ -1,0 +1,52 @@
+group 'com.newt.easemob'
+version '1.0-SNAPSHOT'
+
+buildscript {
+    repositories {
+        google()
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:3.2.1'
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        jcenter()
+        maven { url "https://raw.githubusercontent.com/HyphenateInc/Hyphenate-SDK-Android/master/repository" }
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 28
+
+    defaultConfig {
+        minSdkVersion 16
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+    lintOptions {
+        disable 'InvalidPackage'
+    }
+
+    //use legacy for android 6.0
+    useLibrary 'org.apache.http.legacy'
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
+    }
+
+}
+
+dependencies {
+    //Optional compile for GCM (Google Cloud Messaging).
+    implementation 'com.google.android.gms:play-services-gcm:16.1.0'
+    implementation 'com.hyphenate:hyphenate-sdk:3.5.5'
+    implementation group: 'com.alibaba', name: 'fastjson', version: '1.2.58'
+}
