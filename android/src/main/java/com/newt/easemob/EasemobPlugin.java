@@ -4,12 +4,16 @@ import android.content.Context;
 
 import com.alibaba.fastjson.JSON;
 import com.hyphenate.EMCallBack;
+import com.hyphenate.EMConnectionListener;
 import com.hyphenate.EMContactListener;
 import com.hyphenate.EMMessageListener;
 import com.hyphenate.chat.EMClient;
 import com.hyphenate.chat.EMCmdMessageBody;
 import com.hyphenate.chat.EMConversation;
 import com.hyphenate.chat.EMCursorResult;
+import com.hyphenate.chat.EMGroup;
+import com.hyphenate.chat.EMGroupManager;
+import com.hyphenate.chat.EMGroupOptions;
 import com.hyphenate.chat.EMMessage;
 import com.hyphenate.chat.EMOptions;
 import com.hyphenate.push.EMPushConfig;
@@ -36,7 +40,8 @@ public class EasemobPlugin implements MethodCallHandler {
   private final Context context;
   private EventChannel.EventSink eventSink;
   private Executor executor = Executors.newFixedThreadPool(4);
-  /// some const values
+
+  /// some const values `DartClassName_Field = value`
   private static final String ChatType_chat = "Chat";
   private static final String ChatType_groupChat = "GroupChat";
   private static final String ChatType_chatRoom = "ChatRoom";
@@ -53,6 +58,12 @@ public class EasemobPlugin implements MethodCallHandler {
   private static final String ConversationType_groupChat = "GroupChat";
   private static final String ConversationType_chatRoom = "ChatRoom";
   private static final String ConversationType_helpDesk = "HelpDesk";
+
+  private static final String GroupStyle_privateOnlyOwnerInvite = "EMGroupStylePrivateOnlyOwnerInvite";
+  private static final String GroupStyle_privateMemberCanInvite = "EMGroupStylePrivateMemberCanInvite";
+  private static final String GroupStyle_publicJoinNeedApproval = "EMGroupStylePublicJoinNeedApproval";
+  private static final String GroupStyle_publicOpenJoin = "EMGroupStylePublicOpenJoin";
+
 
   private final EMMessageListener emMessageListener = new EMMessageListener() {
     @Override
@@ -213,6 +224,32 @@ public class EasemobPlugin implements MethodCallHandler {
         public void run() {
           if (eventSink != null) {
             eventSink.success(event("onFriendRequestDeclined", username));
+          }
+        }
+      });
+    }
+  };
+
+  private EMConnectionListener connectionListener = new EMConnectionListener() {
+    @Override
+    public void onConnected() {
+      registrar.activity().runOnUiThread(new Runnable() {
+        @Override
+        public void run() {
+          if (eventSink != null) {
+            eventSink.success(event("onConnected"));
+          }
+        }
+      });
+    }
+
+    @Override
+    public void onDisconnected(int errorCode) {
+      registrar.activity().runOnUiThread(new Runnable() {
+        @Override
+        public void run() {
+          if (eventSink != null) {
+            eventSink.success(event("onDisconnected", errorCode));
           }
         }
       });
@@ -514,6 +551,109 @@ public class EasemobPlugin implements MethodCallHandler {
     result.success(res);
   }
 
+  @SuppressWarnings("unused")
+  private void getBlackListFromServer(MethodCall call, final Result result) {
+      executor.execute(new Runnable() {
+          @Override
+          public void run() {
+              try {
+                List<String> users = EMClient.getInstance().contactManager().getBlackListFromServer();
+                resultRunOnUiThread(result, users, true);
+              } catch (Throwable t) {
+                t.printStackTrace();
+                resultRunOnUiThread(
+                        result,
+                        null,
+                        false,
+                        "[method_getBlackListFromServer]",
+                        t.getMessage());
+              }
+          }
+      });
+  }
+
+  @SuppressWarnings("unused")
+  private void getBlackListUserNames(MethodCall call,Result result) {
+    List<String> users = EMClient.getInstance().contactManager().getBlackListUsernames();
+    if (users == null) {
+      users = new ArrayList<>(0);
+    }
+    result.success(users);
+  }
+
+  @SuppressWarnings("unused")
+  private void addUserToBlackList(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String username = argument(call, "username", "$$required");
+        boolean both = argument(call, "both", true);
+        try {
+          EMClient.getInstance().contactManager().addUserToBlackList(username, both);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_addUserToBlackList]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void removeUserFromBlackList(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String username = argument(call, "username", "$$required");
+        try {
+          EMClient.getInstance().contactManager().removeUserFromBlackList(username);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_removeUserFromBlackList]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void createAccount(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          String username = argument(call, "username", "$$required");
+          String password = argument(call, "password", "$$required");
+          EMClient.getInstance().createAccount(username, password);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_createAccount]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void getSelfIdsOnOtherPlatform(MethodCall call, Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          List<String> ids = EMClient.getInstance().contactManager().getSelfIdsOnOtherPlatform();
+          resultRunOnUiThread(result, ids, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "method_getSelfIdsOnOtherPlatform", t.getMessage());
+        }
+      }
+    });
+  }
+
   private void addContact(MethodCall call, Result result) {
     try {
       EMClient.getInstance().contactManager().addContact(
@@ -807,5 +947,89 @@ public class EasemobPlugin implements MethodCallHandler {
       default:
         return EMConversation.EMConversationType.Chat;
     }
+  }
+
+
+  /// --------------------群组管理-----------------------
+
+  @SuppressWarnings("unused")
+  private void createGroup(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        EMGroupOptions option = new EMGroupOptions();
+        option.maxUsers = argument(call, "maxUsers", 200);
+        switch (argument(call, "style", GroupStyle_privateOnlyOwnerInvite)) {
+          case GroupStyle_privateMemberCanInvite:
+            option.style = EMGroupManager.EMGroupStyle.EMGroupStylePrivateMemberCanInvite;
+            break;
+
+          case GroupStyle_publicJoinNeedApproval:
+            option.style = EMGroupManager.EMGroupStyle.EMGroupStylePublicJoinNeedApproval;
+            break;
+
+          case GroupStyle_publicOpenJoin:
+            option.style = EMGroupManager.EMGroupStyle.EMGroupStylePublicOpenJoin;
+            break;
+
+          default:
+            option.style = EMGroupManager.EMGroupStyle.EMGroupStylePrivateOnlyOwnerInvite;
+        }
+        option.extField = argument(call, "extField", "");
+        option.inviteNeedConfirm = argument(call, "inviteNeedConfirm", false);
+        String groupName = argument(call, "groupName", "$$required");
+        String desc = argument(call, "desc", "");
+        String reason = argument(call, "reason", "");
+        List<String> allMembers = argument(call, "members", new ArrayList<String>(0));
+        String[] members = allMembers.toArray(new String[0]);
+        try {
+          EMGroup group = EMClient.getInstance()
+                  .groupManager()
+                  .createGroup(groupName, desc, members, reason, option);
+          resultRunOnUiThread(result, group.getGroupId(), true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false, t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void addGroupAdmin(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        String admin = argument(call, "admin", "$$required");
+        try {
+          EMClient.getInstance().groupManager().addGroupAdmin(groupId, admin);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_addGroupAdmin]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void removeGroupAdmin(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        String admin = argument(call, "admin", "$$required");
+        try {
+          EMClient.getInstance().groupManager().removeGroupAdmin(groupId, admin);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_removeGroupAdmin]", t.getMessage());
+        }
+      }
+    });
   }
 }

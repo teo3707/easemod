@@ -85,6 +85,14 @@ class Easemob {
             listener.onFriendRequestDeclined(data['data']);
             break;
 
+          case 'onConnected':
+            listener.onConnected();
+            break;
+
+          case 'onDisconnected':
+            listener.onDisconnected(data['data']);
+            break;
+
           default:
             print('not implement event on $data');
         }
@@ -345,9 +353,11 @@ class Easemob {
     @required conversationId,
     String conversationType = ConversationType.chat,
     int pageSize = 10,
-    String startMsgId = '', // the start search roam message, if empty start from the server last message
+    String startMsgId =
+        '', // the start search roam message, if empty start from the server last message
   }) async {
-    final List messages = await _channel.invokeMethod('loadMoreRoamingMessages', {
+    final List messages =
+        await _channel.invokeMethod('loadMoreRoamingMessages', {
       'conversationId': conversationId,
       'pageSize': pageSize,
       'startMsgId': startMsgId,
@@ -361,6 +371,109 @@ class Easemob {
       'msgId': msgId,
     });
     return msg;
+  }
+
+  Future<List<String>> getBlackListFromServer() async {
+    final List users = await _channel.invokeMethod('getBlackListFromServer');
+    return users.cast();
+  }
+
+  /// 从本地db获取黑名单列表
+  Future<List<String>> getBlackListUserNames() async {
+    final List users = await _channel.invokeMethod('getBlackListUserNames');
+    return users.cast();
+  }
+
+  /// `both`如果为true，则把用户加入到黑名单后双方发消息时对方都收不到；false，
+  /// 则我能给黑名单的中用户发消息，但是对方发给我时我是收不到的
+  Future<bool> addUserToBlackList(
+      {@required String username, bool both = true}) async {
+    final bool res = await _channel.invokeMethod('addUserToBlackList', {
+      'username': username,
+      'both': both,
+    });
+    return res;
+  }
+
+  Future<bool> removeUserFromBlackList(String username) async {
+    final bool res = await _channel.invokeMethod('removeUserFromBlackList');
+    return res;
+  }
+
+  /// 获取同一账号在其他端登录的id
+  Future<List<String>> getSelfIdsOnOtherPlatform() async {
+    final List res = await _channel.invokeMethod('getSelfIdsOnOtherPlatform');
+    return res.cast();
+  }
+
+  /// @see http://docs-im.easemob.com/im/android/sdk/basic#%E6%B3%A8%E5%86%8C
+  /// 注册用户名会自动转为小写字母，所以建议用户名均以小写注册。
+  /// （强烈建议开发者通过后台调用 REST 接口去注册环信 ID，
+  /// 客户端注册方法不提倡使用。）
+  Future<bool> createAccount({
+    @required String username,
+    @required String password,
+  }) async {
+    final bool res = await _channel.invokeMethod('createAccount', {
+      'username': username,
+      'password': password,
+    });
+    return res;
+  }
+
+  /// @param extField 群详情扩展，可以采用json格式，包含跟多群信息
+  /// @param inviteNeedConfirm 邀请进群是否需要对方同意。如果设置为false，直接加被邀请人进群。
+  /// 在此情况下，被邀请人设置非自动同意进群不起作用。如果设置为true，被邀请人设置非自动
+  /// 同意其作用，用户可以选择接受邀请进群，也可选择拒绝邀请
+  /// @param reason 邀请群成员加入时的邀请信息
+  /// @param members 群成员数组,不需要群主id
+  Future<String> createGroup({
+    int maxUsers = 200,
+    String style = GroupStyle.privateOnlyOwnerInvite,
+    String extField = '',
+    bool inviteNeedConfirm = false,
+    @required String groupName,
+    String desc = '',
+    String reason = '',
+    List<String> members = const [],
+  }) async {
+    final String id = await _channel.invokeMethod('createGroup', {
+      'maxUsers': maxUsers,
+      'style': style,
+      'extField': extField,
+      'groupName': groupName,
+      'inviteNeedConfirm': inviteNeedConfirm,
+      'desc': desc,
+      'reason': reason,
+      'members': members,
+    });
+    return id;
+  }
+
+  /// 增加群组管理员，需要owner权限，admin無权限
+  /// @param groupId the group id
+  /// @param admin the user id to be add
+  Future<bool> addGroupAdmin({
+    @required String groupId,
+    @required String admin,
+  }) async {
+    final bool res = await _channel.invokeMethod('addGroupAdmin', {
+      'groupId': groupId,
+      'admin': admin,
+    });
+    return res;
+  }
+
+  /// @see addGroupAdmin
+  Future<bool> removeGroupAdmin({
+    @required String groupId,
+    @required String admin,
+  }) async {
+    final bool res = await _channel.invokeMethod('removeGroupAdmin', {
+      'groupId': groupId,
+      'admin': admin,
+    });
+    return res;
   }
 }
 
@@ -399,6 +512,14 @@ class MessageType {
   MessageType._internal();
 }
 
+/// @see enum EMGroupManager.EMGroupStyle
+class GroupStyle {
+  static const privateOnlyOwnerInvite = 'EMGroupStylePrivateOnlyOwnerInvite';
+  static const privateMemberCanInvite = 'EMGroupStylePrivateMemberCanInvite';
+  static const publicJoinNeedApproval = 'EMGroupStylePublicJoinNeedApproval';
+  static const publicOpenJoin = 'EMGroupStylePublicOpenJoin';
+}
+
 class EasemobListener {
   void onMessageReceived(List messages) {}
 
@@ -421,4 +542,8 @@ class EasemobListener {
   void onFriendRequestAccepted(String username) {}
 
   void onFriendRequestDeclined(String username) {}
+
+  /// 当掉线时，Android SDK 会自动重连，无需进行任何操作，通过注册连接监听来知道连接状态。
+  void onConnected() {}
+  void onDisconnected(int error) {}
 }
