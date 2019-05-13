@@ -84,6 +84,14 @@ class _MyAppState extends State<MyApp> {
             ),
             SizedBox(height: 12),
             FlatButton(
+              child: Text('loadMoreMsgFromDB'),
+              onPressed: () async {
+                var res = await easemob.loadMoreMsgFromDB(conversationId: 'admin');
+                print('loadMoreMsgFromDB: $res');
+              },
+            ),
+            SizedBox(height: 12),
+            FlatButton(
               child: Text('sendMessage'),
               onPressed: () async {
                 var res = await easemob.sendMessage(

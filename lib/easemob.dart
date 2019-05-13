@@ -17,7 +17,7 @@ class Easemob {
 
   static Easemob _instance;
 
-  List<Listener> _listeners = [];
+  List<EasemobListener> _listeners = [];
 
   Easemob._intern() {
     /// handle events:
@@ -26,7 +26,8 @@ class Easemob {
     ///   onContactAdded, onContactDeleted,onContactInvited,
     ///   onFriendRequestAccepted, onFriendRequestDeclined ]
     _eventChannel.receiveBroadcastStream().listen((data) {
-      for (Listener listener in _listeners) {
+      print('ease mob event: $data');
+      for (EasemobListener listener in _listeners) {
         switch (data['event']) {
           case 'onMessageReceived':
             List messages = data['data'];
@@ -98,13 +99,13 @@ class Easemob {
     return _instance;
   }
 
-  void addListener(Listener listener) {
+  void addListener(EasemobListener listener) {
     if (!_listeners.contains(listener)) {
       _listeners.add(listener);
     }
   }
 
-  void removeListener(Listener listener) {
+  void removeListener(EasemobListener listener) {
     _listeners.remove(listener);
   }
 
@@ -399,7 +400,7 @@ class MessageType {
   MessageType._internal();
 }
 
-class Listener {
+class EasemobListener {
   void onMessageReceived(List messages) {}
 
   void onCmdMessageReceived(List messages) {}
