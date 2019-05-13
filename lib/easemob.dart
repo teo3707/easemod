@@ -253,11 +253,10 @@ class Easemob {
   }
 
   /// @see http://docs-im.easemob.com/im/android/basics/message
-  /// if `startMsgId` not supply, return all messages. otherwise
-  //  return `pageSize` messages.
+  /// to get all messages, set startMsgId = null
   Future<List<Map>> loadMoreMsgFromDB({
     @required String conversationId,
-    String startMsgId,
+    String startMsgId = '',
     int pageSize,
   }) async {
     List messages = await _channel.invokeMethod('loadMoreMsgFromDB', {

@@ -49,10 +49,10 @@ public class EasemobPlugin implements MethodCallHandler {
   private static final String MessageType_file = "FILE";
   private static final String MessageType_cmd = "CMD";
 
-  public static final String ConversationType_chat = "Chat";
-  public static final String ConversationType_groupChat = "GroupChat";
-  public static final String ConversationType_chatRoom = "ChatRoom";
-  public static final String ConversationType_helpDesk = "HelpDesk";
+  private static final String ConversationType_chat = "Chat";
+  private static final String ConversationType_groupChat = "GroupChat";
+  private static final String ConversationType_chatRoom = "ChatRoom";
+  private static final String ConversationType_helpDesk = "HelpDesk";
 
   private final EMMessageListener emMessageListener = new EMMessageListener() {
     @Override
@@ -282,6 +282,7 @@ public class EasemobPlugin implements MethodCallHandler {
         } catch (NoSuchMethodException e) {
           result.notImplemented();
         } catch (Throwable t) {
+          t.printStackTrace();
           result.error("method_" + call.method, t.getMessage(), null);
         }
     }
@@ -457,7 +458,7 @@ public class EasemobPlugin implements MethodCallHandler {
 
     // 发送扩展消息
     try {
-      Map<String, Object> attributes = argument(call, "attributes", new HashMap(0));
+      Map<String, Object> attributes = argument(call, "attributes", new HashMap<String, Object>(0));
       for (Map.Entry<String, Object> item : attributes.entrySet()) {
         Object value = item.getValue();
         if (value instanceof Integer) {
@@ -491,13 +492,17 @@ public class EasemobPlugin implements MethodCallHandler {
    */
   @SuppressWarnings("unused")
   private void loadMoreMsgFromDB(MethodCall call, Result result) {
-    EMConversation conversation = EMClient.getInstance().chatManager().getConversation(
-            argument(call, "conversationId", "$$required"));
+    String conversationId = argument(call, "conversationId", "$$required");
+    EMConversation conversation = EMClient.getInstance().chatManager().getConversation(conversationId);
+    if (conversation == null) {
+      result.error("[method_loadMoreFromDB]", "conversation `" + conversationId + "` not exist", null);
+      return;
+    }
     String startMsgId = argument(call, "startMsgId", null);
     int pageSize = argument(call, "pageSize", 10);
     List<EMMessage> messages;
-    if (notEmptyStrings(startMsgId)) {
-      messages = conversation.loadMoreMsgFromDB(startMsgId, 10);
+    if (startMsgId != null) {
+      messages = conversation.loadMoreMsgFromDB(startMsgId, pageSize);
     } else {
       messages = conversation.getAllMessages();
     }
