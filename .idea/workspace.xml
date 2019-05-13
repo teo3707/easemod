@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="acb44e1f-8aa6-40a4-bab2-e1d6d0b3a91d" name="Default Changelist" comment="" />
+    <list default="true" id="acb44e1f-8aa6-40a4-bab2-e1d6d0b3a91d" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/libraries/Dart_SDK.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/libraries/Dart_SDK.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/android/src/main/java/com/newt/easemob/EasemobPlugin.java" beforeDir="false" afterPath="$PROJECT_DIR$/android/src/main/java/com/newt/easemob/EasemobPlugin.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/example/pubspec.lock" beforeDir="false" afterPath="$PROJECT_DIR$/example/pubspec.lock" afterDir="false" />
+    </list>
     <ignored path="$PROJECT_DIR$/.dart_tool/" />
     <ignored path="$PROJECT_DIR$/.idea/" />
     <ignored path="$PROJECT_DIR$/.pub/" />
@@ -14,13 +19,45 @@
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="FUSProjectUsageTrigger">
+    <session id="-289305487">
+      <usages-collector id="statistics.lifecycle.project">
+        <counts>
+          <entry key="project.open.time.0" value="1" />
+          <entry key="project.opened" value="1" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.extensions.edit">
+        <counts>
+          <entry key="dart" value="107" />
+          <entry key="txt" value="27" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.types.edit">
+        <counts>
+          <entry key="Dart" value="107" />
+          <entry key="PLAIN_TEXT" value="27" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.extensions.open">
+        <counts>
+          <entry key="dart" value="1" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.types.open">
+        <counts>
+          <entry key="Dart" value="1" />
+        </counts>
+      </usages-collector>
+    </session>
+  </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/lib/easemob.dart">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="457">
-              <caret line="366" column="32" selection-start-line="366" selection-start-column="32" selection-end-line="366" selection-end-column="32" />
+            <state relative-caret-position="251">
+              <caret line="255" column="48" selection-start-line="255" selection-start-column="48" selection-end-line="255" selection-end-column="48" />
               <folding>
                 <element signature="e#0#20#0" expanded="true" />
               </folding>
@@ -29,28 +66,10 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://D:/soft/flutter/bin/cache/pkg/sky_engine/lib/core/map.dart">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="295">
-              <caret line="245" column="14" selection-start-line="245" selection-start-column="14" selection-end-line="245" selection-end-column="14" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://D:/soft/flutter/packages/flutter/lib/src/services/platform_channel.dart">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="152">
-              <caret line="292" column="12" selection-start-line="292" selection-start-column="12" selection-end-line="292" selection-end-column="12" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/example/lib/main.dart">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="350">
-              <caret line="81" column="51" selection-start-line="81" selection-start-column="51" selection-end-line="81" selection-end-column="51" />
+            <state relative-caret-position="1512">
+              <caret line="76" column="33" selection-start-line="76" selection-start-column="33" selection-end-line="76" selection-end-column="33" />
             </state>
           </provider>
         </entry>
@@ -63,7 +82,11 @@
       <find>getAllConversations</find>
       <find>deleteContact</find>
       <find>loadMoreMsgFr</find>
+      <find>loadM</find>
     </findStrings>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
@@ -74,16 +97,38 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="1910" />
-    <option name="width" value="1942" />
-    <option name="height" value="2092" />
+  <component name="ProjectFrameBounds">
+    <option name="y" value="23" />
+    <option name="width" value="2560" />
+    <option name="height" value="1342" />
   </component>
   <component name="ProjectView">
     <navigator currentView="ProjectPane" proportions="" version="1">
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
+      <pane id="ProjectPane">
+        <subPane>
+          <expand>
+            <path>
+              <item name="easemod" type="b2602c69:ProjectViewProjectNode" />
+              <item name="easemod" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="easemod" type="b2602c69:ProjectViewProjectNode" />
+              <item name="easemod" type="462c0819:PsiDirectoryNode" />
+              <item name="example" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="easemod" type="b2602c69:ProjectViewProjectNode" />
+              <item name="easemod" type="462c0819:PsiDirectoryNode" />
+              <item name="lib" type="462c0819:PsiDirectoryNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
       <pane id="PackagesPane">
         <subPane>
           <expand>
@@ -104,76 +149,13 @@
           <select />
         </subPane>
       </pane>
-      <pane id="ProjectPane">
-        <subPane>
-          <expand>
-            <path>
-              <item name="easemob" type="b2602c69:ProjectViewProjectNode" />
-              <item name="easemob" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="easemob" type="b2602c69:ProjectViewProjectNode" />
-              <item name="easemob" type="462c0819:PsiDirectoryNode" />
-              <item name="android" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="easemob" type="b2602c69:ProjectViewProjectNode" />
-              <item name="easemob" type="462c0819:PsiDirectoryNode" />
-              <item name="example" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="easemob" type="b2602c69:ProjectViewProjectNode" />
-              <item name="easemob" type="462c0819:PsiDirectoryNode" />
-              <item name="example" type="462c0819:PsiDirectoryNode" />
-              <item name="android" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="easemob" type="b2602c69:ProjectViewProjectNode" />
-              <item name="easemob" type="462c0819:PsiDirectoryNode" />
-              <item name="example" type="462c0819:PsiDirectoryNode" />
-              <item name="android" type="462c0819:PsiDirectoryNode" />
-              <item name="app" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="easemob" type="b2602c69:ProjectViewProjectNode" />
-              <item name="easemob" type="462c0819:PsiDirectoryNode" />
-              <item name="example" type="462c0819:PsiDirectoryNode" />
-              <item name="android" type="462c0819:PsiDirectoryNode" />
-              <item name="app" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="easemob" type="b2602c69:ProjectViewProjectNode" />
-              <item name="easemob" type="462c0819:PsiDirectoryNode" />
-              <item name="example" type="462c0819:PsiDirectoryNode" />
-              <item name="android" type="462c0819:PsiDirectoryNode" />
-              <item name="app" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="main" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="easemob" type="b2602c69:ProjectViewProjectNode" />
-              <item name="easemob" type="462c0819:PsiDirectoryNode" />
-              <item name="example" type="462c0819:PsiDirectoryNode" />
-              <item name="lib" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="easemob" type="b2602c69:ProjectViewProjectNode" />
-              <item name="easemob" type="462c0819:PsiDirectoryNode" />
-              <item name="lib" type="462c0819:PsiDirectoryNode" />
-            </path>
-          </expand>
-          <select />
-        </subPane>
-      </pane>
-      <pane id="Scope" />
-      <pane id="AndroidView" />
     </panes>
   </component>
   <component name="PropertiesComponent">
     <property name="dart.analysis.tool.window.force.activate" value="false" />
     <property name="io.flutter.reload.alreadyRun" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="flutter.settings" />
     <property name="show.migrate.to.gradle.popup" value="false" />
   </component>
   <component name="RecentsManager">
@@ -204,12 +186,28 @@
       <option name="presentableId" value="Default" />
       <updated>1557553035075</updated>
     </task>
+    <task id="LOCAL-00001" summary="fix bug `loadMoreMsgFromDB`">
+      <created>1557740489278</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1557740489278</updated>
+    </task>
+    <task id="LOCAL-00002" summary="fix bug `loadMoreMsgFromDB`">
+      <created>1557740881672</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1557740881672</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-6" y="-6" width="1933" height="1053" extended-state="6" />
+    <frame x="0" y="23" width="2560" height="1342" extended-state="6" />
+    <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" weight="0.1947777" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.19457735" />
       <window_info id="Captures" order="1" side_tool="true" />
       <window_info id="Structure" order="2" side_tool="true" />
       <window_info id="Image Layers" order="3" />
@@ -218,6 +216,7 @@
       <window_info id="Resources Explorer" order="6" />
       <window_info id="Capture Tool" order="7" />
       <window_info id="Favorites" order="8" side_tool="true" />
+      <window_info anchor="bottom" id="Messages" weight="0.32981315" />
       <window_info anchor="bottom" id="Dart Analysis" order="0" weight="0.32969433" />
       <window_info anchor="bottom" id="TODO" order="1" />
       <window_info anchor="bottom" id="Android Profiler" order="2" show_stripe_button="false" />
@@ -227,7 +226,7 @@
       <window_info anchor="bottom" id="Event Log" order="6" side_tool="true" />
       <window_info anchor="bottom" id="Flutter Performance" order="7" side_tool="true" />
       <window_info anchor="bottom" id="Version Control" order="8" />
-      <window_info anchor="bottom" id="Run" order="9" weight="0.4582882" />
+      <window_info active="true" anchor="bottom" id="Run" order="9" visible="true" weight="0.32412672" />
       <window_info anchor="right" id="Device File Explorer" order="0" side_tool="true" />
       <window_info anchor="right" id="Capture Analysis" order="1" />
       <window_info anchor="right" id="Theme Preview" order="2" />
@@ -263,6 +262,13 @@
       <window_info anchor="right" id="Palette&#9;" order="5" />
     </layout-to-restore>
   </component>
+  <component name="VcsContentAnnotationSettings">
+    <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="fix bug `loadMoreMsgFromDB`" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix bug `loadMoreMsgFromDB`" />
+  </component>
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/android/src/main/AndroidManifest.xml">
       <provider selected="true" editor-type-id="text-editor" />
@@ -274,65 +280,26 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://D:/soft/flutter/bin/cache/pkg/sky_engine/lib/core/iterable.dart">
+    <entry file="file://D:/soft/flutter/bin/cache/pkg/sky_engine/lib/core/iterable.dart" />
+    <entry file="file://D:/soft/flutter/packages/flutter/lib/src/services/platform_channel.dart" />
+    <entry file="file://D:/soft/flutter/packages/flutter/lib/src/material/flat_button.dart" />
+    <entry file="file://$USER_HOME$/AppData/Roaming/Pub/Cache/hosted/pub.flutter-io.cn/meta-1.1.6/lib/meta.dart" />
+    <entry file="file://D:/soft/flutter/bin/cache/pkg/sky_engine/lib/core/list.dart" />
+    <entry file="file://D:/soft/flutter/bin/cache/pkg/sky_engine/lib/core/map.dart" />
+    <entry file="file://$PROJECT_DIR$/example/lib/main.dart">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="152">
-          <caret line="194" column="14" selection-start-line="194" selection-start-column="14" selection-end-line="194" selection-end-column="14" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://D:/soft/flutter/packages/flutter/lib/src/services/platform_channel.dart">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="152">
-          <caret line="292" column="12" selection-start-line="292" selection-start-column="12" selection-end-line="292" selection-end-column="12" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://D:/soft/flutter/packages/flutter/lib/src/material/flat_button.dart">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1584">
-          <caret line="97" column="7" selection-start-line="97" selection-start-column="4" selection-end-line="97" selection-end-column="13" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/AppData/Roaming/Pub/Cache/hosted/pub.flutter-io.cn/meta-1.1.6/lib/meta.dart">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="423">
-          <caret line="191" column="22" selection-start-line="191" selection-start-column="15" selection-end-line="191" selection-end-column="22" />
-          <folding>
-            <element signature="e#0#11555#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://D:/soft/flutter/bin/cache/pkg/sky_engine/lib/core/list.dart">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="151">
-          <caret line="511" column="13" lean-forward="true" selection-start-line="511" selection-start-column="13" selection-end-line="511" selection-end-column="13" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://D:/soft/flutter/bin/cache/pkg/sky_engine/lib/core/map.dart">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="295">
-          <caret line="245" column="14" selection-start-line="245" selection-start-column="14" selection-end-line="245" selection-end-column="14" />
+        <state relative-caret-position="1512">
+          <caret line="76" column="33" selection-start-line="76" selection-start-column="33" selection-end-line="76" selection-end-column="33" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/lib/easemob.dart">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="457">
-          <caret line="366" column="32" selection-start-line="366" selection-start-column="32" selection-end-line="366" selection-end-column="32" />
+        <state relative-caret-position="251">
+          <caret line="255" column="48" selection-start-line="255" selection-start-column="48" selection-end-line="255" selection-end-column="48" />
           <folding>
             <element signature="e#0#20#0" expanded="true" />
           </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/example/lib/main.dart">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="350">
-          <caret line="81" column="51" selection-start-line="81" selection-start-column="51" selection-end-line="81" selection-end-column="51" />
         </state>
       </provider>
     </entry>

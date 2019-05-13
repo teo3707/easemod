@@ -495,7 +495,7 @@ public class EasemobPlugin implements MethodCallHandler {
     String conversationId = argument(call, "conversationId", "$$required");
     EMConversation conversation = EMClient.getInstance().chatManager().getConversation(conversationId);
     if (conversation == null) {
-      result.error("[method_loadMoreFromDB]", "conversation `" + conversationId + "` not exist", null);
+      result.error("[method_loadMoreFromDB]", "conversation `" + conversationId + "` not exist", true);
       return;
     }
     String startMsgId = argument(call, "startMsgId", null);
