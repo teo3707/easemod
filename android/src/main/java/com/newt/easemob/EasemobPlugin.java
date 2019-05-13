@@ -244,7 +244,7 @@ public class EasemobPlugin implements MethodCallHandler {
     }
 
     @Override
-    public void onDisconnected(int errorCode) {
+    public void onDisconnected(final int errorCode) {
       registrar.activity().runOnUiThread(new Runnable() {
         @Override
         public void run() {
@@ -638,7 +638,7 @@ public class EasemobPlugin implements MethodCallHandler {
   }
 
   @SuppressWarnings("unused")
-  private void getSelfIdsOnOtherPlatform(MethodCall call, Result result) {
+  private void getSelfIdsOnOtherPlatform(MethodCall call, final Result result) {
     executor.execute(new Runnable() {
       @Override
       public void run() {
