@@ -1,17 +1,20 @@
 package com.newt.easemob;
 
 import android.content.Context;
+import android.text.TextUtils;
 
 import com.alibaba.fastjson.JSON;
 import com.hyphenate.EMCallBack;
 import com.hyphenate.EMConnectionListener;
 import com.hyphenate.EMContactListener;
 import com.hyphenate.EMMessageListener;
+import com.hyphenate.EMMultiDeviceListener;
 import com.hyphenate.chat.EMClient;
 import com.hyphenate.chat.EMCmdMessageBody;
 import com.hyphenate.chat.EMConversation;
 import com.hyphenate.chat.EMCursorResult;
 import com.hyphenate.chat.EMGroup;
+import com.hyphenate.chat.EMGroupInfo;
 import com.hyphenate.chat.EMGroupManager;
 import com.hyphenate.chat.EMGroupOptions;
 import com.hyphenate.chat.EMMessage;
@@ -250,6 +253,32 @@ public class EasemobPlugin implements MethodCallHandler {
         public void run() {
           if (eventSink != null) {
             eventSink.success(event("onDisconnected", errorCode));
+          }
+        }
+      });
+    }
+  };
+
+  private EMMultiDeviceListener multiDeviceListener = new EMMultiDeviceListener() {
+    @Override
+    public void onContactEvent(final int event, final String target, final String ext) {
+      registrar.activity().runOnUiThread(new Runnable() {
+        @Override
+        public void run() {
+          if (eventSink != null) {
+            eventSink.success(event("onContactEvent", "event", event, "target", target, "ext", ext));
+          }
+        }
+      });
+    }
+
+    @Override
+    public void onGroupEvent(final int event, final String target, final List<String> userNames) {
+      registrar.activity().runOnUiThread(new Runnable() {
+        @Override
+        public void run() {
+          if (eventSink != null) {
+            eventSink.success(event("onGroupEvent", "event", event, "target", target, "userNames", userNames));
           }
         }
       });
@@ -847,6 +876,8 @@ public class EasemobPlugin implements MethodCallHandler {
   private void initListener() {
     EMClient.getInstance().chatManager().addMessageListener(emMessageListener);
     EMClient.getInstance().contactManager().setContactListener(emContactListener);
+    EMClient.getInstance().addConnectionListener(connectionListener);
+    EMClient.getInstance().addMultiDeviceListener(multiDeviceListener);
   }
 
   @SuppressWarnings("unused")
@@ -998,7 +1029,7 @@ public class EasemobPlugin implements MethodCallHandler {
           EMGroup group = EMClient.getInstance()
                   .groupManager()
                   .createGroup(groupName, desc, members, reason, option);
-          resultRunOnUiThread(result, group.getGroupId(), true);
+          resultRunOnUiThread(result, JSON.toJSONString(group), true);
         } catch (Throwable t) {
           t.printStackTrace();
           resultRunOnUiThread(result, null, false, t.getMessage());
@@ -1015,8 +1046,8 @@ public class EasemobPlugin implements MethodCallHandler {
         String groupId = argument(call, "groupId", "$$required");
         String admin = argument(call, "admin", "$$required");
         try {
-          EMClient.getInstance().groupManager().addGroupAdmin(groupId, admin);
-          resultRunOnUiThread(result, true, true);
+          EMGroup group = EMClient.getInstance().groupManager().addGroupAdmin(groupId, admin);
+          resultRunOnUiThread(result, JSON.toJSONString(group), true);
         } catch (Throwable t) {
           t.printStackTrace();
           resultRunOnUiThread(result, null, false,
@@ -1034,12 +1065,297 @@ public class EasemobPlugin implements MethodCallHandler {
         String groupId = argument(call, "groupId", "$$required");
         String admin = argument(call, "admin", "$$required");
         try {
-          EMClient.getInstance().groupManager().removeGroupAdmin(groupId, admin);
-          resultRunOnUiThread(result, true, true);
+          EMGroup group = EMClient.getInstance().groupManager().removeGroupAdmin(groupId, admin);
+          resultRunOnUiThread(result, JSON.toJSONString(group), true);
         } catch (Throwable t) {
           t.printStackTrace();
           resultRunOnUiThread(result, null, false,
                   "[method_removeGroupAdmin]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void changeGroupOwner(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        String newOwner = argument(call, "newOwner", "$$required");
+        try {
+          EMGroup group = EMClient.getInstance().groupManager().changeOwner(groupId, newOwner);
+          resultRunOnUiThread(result, JSON.toJSONString(group), true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_changeGroupOwner]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void addOrInviteUsersToGroup(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        String reason = argument(call, "reason", "");
+        List<String> allMembers = argument(call, "members", new ArrayList<String>(0));
+        String[] members = allMembers.toArray(new String[0]);
+        EMGroup group = EMClient.getInstance().groupManager().getGroup(groupId);
+        if (group == null) {
+          resultRunOnUiThread(result, true, false,
+                  "[method_addUserToGroup]", "group `" + groupId +"` does not exists");
+        } else {
+          try {
+            if (EMClient.getInstance().getCurrentUser().equals(group.getOwner())) {
+              EMClient.getInstance().groupManager().addUsersToGroup(groupId, members);
+            } else {
+              EMClient.getInstance().groupManager().inviteUser(groupId, members, reason);
+            }
+            resultRunOnUiThread(result, true, true);
+          } catch (Throwable t) {
+            t.printStackTrace();
+            resultRunOnUiThread(result, null, false,
+                    "[method_addOrInviteUsersToGroup]", t.getMessage());
+          }
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void removeUserFromGroup(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        String username = argument(call, "username", "$$required");
+        try {
+          EMClient.getInstance().groupManager().removeUserFromGroup(groupId, username);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_removeUserFromGroup]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void joinOrApplyJoinGroup(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        String reason = argument(call, "reason", "");
+        EMGroup group = EMClient.getInstance().groupManager().getGroup(groupId);
+        if (group == null) {
+          resultRunOnUiThread(result, true, false,
+                  "[method_joinOrApplyJoinGroup]", "group `" + groupId +"` does not exists");
+        } else {
+          try {
+            if (group.isMemberOnly()) {
+              EMClient.getInstance().groupManager().applyJoinToGroup(groupId, reason);
+            } else {
+              EMClient.getInstance().groupManager().joinGroup(groupId);
+            }
+            resultRunOnUiThread(result, true, true);
+          } catch (Throwable t) {
+            t.printStackTrace();
+            resultRunOnUiThread(result, null, false,
+                    "[method_joinOrApplyJoinGroup]", t.getMessage());
+          }
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void leaveGroup(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        try {
+          EMClient.getInstance().groupManager().leaveGroup(groupId);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_leaveGroup]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void destroyGroup(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          String groupId = argument(call, "groupId", "$$required");
+          EMClient.getInstance().groupManager().destroyGroup(groupId);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_destroyGroup]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void fetchGroupMembers(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        final int pageSize = argument(call, "pageSize", 20);
+        String cursor = argument(call, "cursor", "");
+        try {
+          final EMCursorResult<String> emResult = EMClient
+                  .getInstance()
+                  .groupManager()
+                  .fetchGroupMembers(groupId, cursor, pageSize);
+          final List<String> members = new ArrayList<>(emResult.getData());
+          resultRunOnUiThread(result, new HashMap<String, Object>(3) {{
+            put("hasMore", !TextUtils.isEmpty(emResult.getCursor())
+                    && emResult.getData().size() == pageSize);
+            put("data", members);
+            put("cursor", emResult.getCursor());
+          }}, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_fetchGroupMembers]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void getJoinedGroupsFromServer(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        int pageIndex = argument(call, "pageIndex", 1);
+        int pageSize = argument(call, "pageSize", 20);
+        boolean fetchAll = argument(call, "fetchAll", false);
+        List<EMGroup> groups;
+        try {
+          if (fetchAll) {
+            groups = EMClient.getInstance().groupManager().getJoinedGroupsFromServer();
+          } else {
+            groups = EMClient.getInstance().groupManager().getJoinedGroupsFromServer(pageIndex, pageSize);
+          }
+          List<String> res = new ArrayList<>(groups.size());
+          for (EMGroup group : groups) {
+            res.add(JSON.toJSONString(group));
+          }
+          resultRunOnUiThread(result, res, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_getJoinedGroupsFromServer]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void getAllGroups(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        List<EMGroup> groups = EMClient.getInstance().groupManager().getAllGroups();
+        List<String> res = new ArrayList<>(groups.size());
+        for (EMGroup group : groups) {
+          res.add(JSON.toJSONString(group));
+        }
+        resultRunOnUiThread(result, res, true);
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void getPublicGroupsFromServer(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        final int pageSize = argument(call, "pageSize", 20);
+        String cursor = argument(call, "cursor", "");
+        try {
+          final EMCursorResult<EMGroupInfo> emResult = EMClient.getInstance()
+                  .groupManager()
+                  .getPublicGroupsFromServer(pageSize, cursor);
+          resultRunOnUiThread(result, new HashMap<String, Object>(3) {{
+            put("hasMore", !TextUtils.isEmpty(emResult.getCursor())
+                    && emResult.getData().size() == pageSize);
+            put("data", emResult.getData());
+            put("cursor", emResult.getCursor());
+          }}, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_getPublicGroupsFromServer]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void changeGroup(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        String changedGroupName = argument(call, "changedGroupName", "");
+        String description = argument(call, "description", "");
+        try {
+          if (notEmptyStrings(changedGroupName)) {
+            EMClient.getInstance().groupManager().changeGroupName(groupId, changedGroupName);
+          }
+          if (notEmptyStrings(description)) {
+            EMClient.getInstance().groupManager().changeGroupDescription(groupId, description);
+          }
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, true, false,
+                  "[method_changeGroup]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void getGroup(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        boolean fetchMembers = argument(call, "fetchMembers", true);
+        try {
+          EMGroup group = EMClient.getInstance().groupManager().getGroup(groupId);
+          if (group == null) {
+            group = EMClient.getInstance().groupManager().getGroupFromServer(groupId, fetchMembers);
+          }
+          if (group == null) {
+            resultRunOnUiThread(result, true, false,
+                    "[method_getGroup]", groupId + " does not exists");
+          } else {
+            resultRunOnUiThread(result, JSON.toJSONString(group), true);
+          }
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, true, false,
+                  "[method_getGroup]", t.getMessage());
         }
       }
     });

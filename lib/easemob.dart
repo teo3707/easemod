@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart';
 import 'package:flutter/material.dart';
 
-
 class Easemob {
   static const MethodChannel _channel =
       const MethodChannel('com.newt.easemob/method_channel');
@@ -26,73 +25,85 @@ class Easemob {
     /// [ onMessageReceived, onCmdMessageReceived, onMessageRead,
     ///   onMessageDelivered, onMessageRecalled, onMessageChanged,
     ///   onContactAdded, onContactDeleted,onContactInvited,
-    ///   onFriendRequestAccepted, onFriendRequestDeclined ]
+    ///   onFriendRequestAccepted, onFriendRequestDeclined,
+    ///   onConnected, onDisconnected, onContactEvent,
+    ///   onGroupEvent]
     _eventChannel.receiveBroadcastStream().listen((data) {
       print('ease mob event: $data');
       for (EasemobListener listener in _listeners) {
         switch (data['event']) {
           case 'onMessageReceived':
             List messages = data['data'];
-            listener.onMessageReceived(
+            listener.onEMMessageReceived(
                 messages.map((item) => json.encode(item)).toList());
             break;
 
           case 'onCmdMessageReceived':
             List messages = data['data'];
-            listener.onCmdMessageReceived(
+            listener.onEMCmdMessageReceived(
                 messages.map((item) => json.encode(item)).toList());
             break;
 
           case 'onMessageRead':
             List messages = data['data'];
-            listener.onMessageRead(
+            listener.onEMMessageRead(
                 messages.map((item) => json.encode(item)).toList());
             break;
 
           case 'onMessageDelivered':
             List messages = data['data'];
-            listener.onMessageDelivered(
+            listener.onEMMessageDelivered(
                 messages.map((item) => json.encode(item)).toList());
             break;
 
           case 'onMessageRecalled':
             List messages = data['data'];
-            listener.onMessageRecalled(
+            listener.onEMMessageRecalled(
                 messages.map((item) => json.encode(item)).toList());
             break;
 
           case 'onMessageChanged':
-            listener.onMessageChanged(
+            listener.onEMMessageChanged(
                 json.decode(data['data']['message']), data['data']['change']);
             break;
 
           case 'onContactAdded':
-            listener.onContactAdded(data['data']);
+            listener.onEMContactAdded(data['data']);
             break;
 
           case 'onContactDeleted':
-            listener.onContactDeleted(data['data']);
+            listener.onEMContactDeleted(data['data']);
             break;
 
           case 'onContactInvited':
-            listener.onContactInvited(
+            listener.onEMContactInvited(
                 data['data']['username'], data['data']['reason']);
             break;
 
           case 'onFriendRequestAccepted':
-            listener.onFriendRequestAccepted(data['data']);
+            listener.onEMFriendRequestAccepted(data['data']);
             break;
 
           case 'onFriendRequestDeclined':
-            listener.onFriendRequestDeclined(data['data']);
+            listener.onEMFriendRequestDeclined(data['data']);
             break;
 
           case 'onConnected':
-            listener.onConnected();
+            listener.onEMConnected();
             break;
 
           case 'onDisconnected':
-            listener.onDisconnected(data['data']);
+            listener.onEMDisconnected(data['data']);
+            break;
+
+          case 'onContactEvent':
+            listener.onEMContactEvent(data['data']['event'],
+                data['data']['target'], data['data']['ext']);
+            break;
+
+          case 'onGroupEvent':
+            listener.onEMGroupEvent(data['data']['event'],
+                data['data']['target'], data['data']['userNames']);
             break;
 
           default:
@@ -429,7 +440,7 @@ class Easemob {
   /// 同意其作用，用户可以选择接受邀请进群，也可选择拒绝邀请
   /// @param reason 邀请群成员加入时的邀请信息
   /// @param members 群成员数组,不需要群主id
-  Future<String> createGroup({
+  Future<Map> createGroup({
     int maxUsers = 200,
     String style = GroupStyle.privateOnlyOwnerInvite,
     String extField = '',
@@ -439,7 +450,7 @@ class Easemob {
     String reason = '',
     List<String> members = const [],
   }) async {
-    final String id = await _channel.invokeMethod('createGroup', {
+    final String res = await _channel.invokeMethod('createGroup', {
       'maxUsers': maxUsers,
       'style': style,
       'extField': extField,
@@ -449,33 +460,187 @@ class Easemob {
       'reason': reason,
       'members': members,
     });
-    return id;
+    return json.decode(res);
   }
 
   /// 增加群组管理员，需要owner权限，admin無权限
   /// @param groupId the group id
   /// @param admin the user id to be add
-  Future<bool> addGroupAdmin({
+  Future<Map> addGroupAdmin({
     @required String groupId,
     @required String admin,
   }) async {
-    final bool res = await _channel.invokeMethod('addGroupAdmin', {
+    final String res = await _channel.invokeMethod('addGroupAdmin', {
       'groupId': groupId,
       'admin': admin,
+    });
+    return json.decode(res);
+  }
+
+  /// @see addGroupAdmin
+  Future<Map> removeGroupAdmin({
+    @required String groupId,
+    @required String admin,
+  }) async {
+    final String res = await _channel.invokeMethod('removeGroupAdmin', {
+      'groupId': groupId,
+      'admin': admin,
+    });
+    return json.decode(res);
+  }
+
+  Future<Map> changeGroupOwner({
+    @required String groupId,
+    @required String newOwner,
+  }) async {
+    final String res = await _channel.invokeMethod('changeGroupOwner', {
+      'groupId': groupId,
+      'newOwner': newOwner,
+    });
+    return json.decode(res);
+  }
+
+  /// 群主加人，或开放了群成员邀请，群成员邀请入群，methodChannel通过判断
+  /// 是否是群拥有者，调用不同的方法
+  Future<bool> addOrInviteUsersToGroup({
+    @required String groupId,
+    @required List<String> members,
+    String reason,
+  }) async {
+    final bool res = await _channel.invokeMethod('addOrInviteUsersToGroup', {
+      'groupId': groupId,
+      'reason': reason,
+      'members': members,
     });
     return res;
   }
 
-  /// @see addGroupAdmin
-  Future<bool> removeGroupAdmin({
+  /// 群组踢人
+  Future<bool> removeUserFromGroup({
     @required String groupId,
-    @required String admin,
+    @required String username,
   }) async {
-    final bool res = await _channel.invokeMethod('removeGroupAdmin', {
+    final bool res = await _channel.invokeMethod('removeUserFromGroup', {
       'groupId': groupId,
-      'admin': admin,
+      'username': username,
     });
     return res;
+  }
+
+  /// 加入某个群组, MethodChannel根据群的属性调用不同的方法
+  /// @see http://docs-im.easemob.com/im/android/basics/group#%E5%8A%A0%E5%85%A5%E6%9F%90%E4%B8%AA%E7%BE%A4%E7%BB%84
+  Future<bool> joinOrApplyJoinGroup({
+    @required String groupId,
+    String reason,
+  }) async {
+    final bool res = await _channel.invokeMethod('joinOrApplyJoinGroup', {
+      'groupId': groupId,
+      'reason': reason,
+    });
+    return res;
+  }
+
+  /// 退出群组
+  Future<bool> leaveGroup(String groupId) async {
+    final bool res = await _channel.invokeMethod('leaveGroup', {
+      'groupId': groupId,
+    });
+    return res;
+  }
+
+  /// 解散群组
+  Future<bool> destroyGroup(String groupId) async {
+    final bool res = await _channel.invokeMethod('destroyGroup', {
+      'groupId': groupId,
+    });
+    return res;
+  }
+
+  /// @see http://docs-im.easemob.com/im/android/basics/group#%E8%8E%B7%E5%8F%96%E5%AE%8C%E6%95%B4%E7%9A%84%E7%BE%A4%E6%88%90%E5%91%98%E5%88%97%E8%A1%A8
+  /// 从服务器获取完整的群成员列表
+  /// @param pageSize 每次获取条数
+  /// @param cursor 获取下一页的游标，获取第一页传`''`，下一次传返回的`cursor`
+  /// @return { hasMore: bool, data: List<String>, cursor: String }
+  Future<Map<String, dynamic>> fetchGroupMembers({
+    @required String groupId,
+    String cursor = '',
+    int pageSize = 20,
+  }) async {
+    final Map res = await _channel.invokeMethod('fetchGroupMembers', {
+      'groupId': groupId,
+      'pageSize': pageSize,
+      'cursor': cursor,
+    });
+    return res.cast();
+  }
+
+  /// @see http://docs-im.easemob.com/im/android/basics/group#%E8%8E%B7%E5%8F%96%E7%BE%A4%E7%BB%84%E5%88%97%E8%A1%A8
+  /// 从服务器端获取当前用户的所有群组 （此操作只返回群组列表，并不获取群组的所有成员信息),
+  /// 如果要更新某个群组包括成员的全部信息，需要再调用。从第一页开始取。
+  /// 此api获取的群组sdk会自动保存到内存和db。
+  /// @param fetchAll 是否获取所有记录，为true时忽略其他参数
+  /// @param pageIndex 从1开始
+  Future<List<Map<String, dynamic>>> getJoinedGroupsFromServer({
+    bool fetchAll = false,
+    int pageIndex = 1,
+    int pageSize = 20,
+  }) async {
+    final List groups =
+        await _channel.invokeMethod('getJoinedGroupsFromServer', {
+      'pageIndex': pageIndex,
+      'pageSize': pageSize,
+      'fetchAll': fetchAll,
+    });
+    return List<Map<String, dynamic>>.generate(
+      groups.length,
+      (idx) => json.decode(groups[idx]),
+    );
+  }
+
+  /// 从本地加载群组列表
+  Future<List<Map>> getAllGroups() async {
+    final List groups = await _channel.invokeMethod('getAllGroups');
+    return groups.cast();
+  }
+
+  /// @param cursor 获取下一页的游标，获取第一页传`''`，下一次传返回的`cursor`
+  /// @return {hasMore: bool, data: List<Map>, cursor: cursor }
+  /// the group is {groupId, groupName},
+  Future<List<Map>> getPublicGroupsFromServer(
+      {int pageSize, String cursor}) async {
+    final List groups =
+        await _channel.invokeMethod('getPublicGroupsFromServer', {
+      'pageSize': pageSize,
+      'cursor': cursor,
+    });
+    return groups.cast();
+  }
+
+  /// 修改群组名称｜描述
+  Future<bool> changeGroup({
+    @required groupId,
+    String changedGroupName,
+    String description,
+  }) async {
+    final bool res = await _channel.invokeMethod('changeGroup', {
+      'groupId': groupId,
+      'changedGroupName': changedGroupName,
+      'description': description,
+    });
+    return res;
+  }
+
+  /// 群组信息，先尝试在本地获取，若没有找到，尝试在服务器获取
+  /// @param fetchMembers 在服务器获取时是否获取群成员
+  Future<Map> getGroup({
+    @required String groupId,
+    bool fetchMembers = true,
+  }) async {
+    final String res = await _channel.invokeMethod('getGroup', {
+      'groupId': groupId,
+      'fetchMembers': fetchMembers,
+    });
+    return json.decode(res);
   }
 }
 
@@ -522,58 +687,148 @@ class GroupStyle {
   static const publicOpenJoin = 'EMGroupStylePublicOpenJoin';
 }
 
-abstract class EasemobListener {
-  void onMessageReceived(List messages) {}
+/// @see java com.hyphenate.EMMultiDeviceListener
+abstract class MultiDeviceEvent {
+  /// 在其他设备上发起好友请求(没有使用)
+  static const int CONTACT_ADD = 1;
 
-  void onCmdMessageReceived(List messages) {}
+  /// 好友已经在其他机子上被移除
+  static const int CONTACT_REMOVE = 2;
 
-  void onMessageRead(List messages) {}
+  ///好友请求已经在其他机子上被同意
+  static const int CONTACT_ACCEPT = 3;
 
-  void onMessageDelivered(List messages) {}
+  /// 好友请求已经在其他机子上被拒绝
+  static const int CONTACT_DECLINE = 4;
 
-  void onMessageRecalled(List messages) {}
+  /// 当前用户在其他设备加某人进入黑名单
+  static const int CONTACT_BAN = 5;
 
-  void onMessageChanged(Map message, String change) {}
+  /// 好友在其他设备被移出黑名单
+  static const int CONTACT_ALLOW = 6;
 
-  void onContactAdded(String username) {}
+  ///创建了群组
+  static const int GROUP_CREATE = 10;
 
-  void onContactDeleted(String username) {}
+  /// 销毁了群组
+  static const int GROUP_DESTROY = 11;
 
-  void onContactInvited(String username, String reason) {}
+  /// 已经加入群组
+  static const int GROUP_JOIN = 12;
 
-  void onFriendRequestAccepted(String username) {}
+  /// 已经离开群组
+  static const int GROUP_LEAVE = 13;
 
-  void onFriendRequestDeclined(String username) {}
+  /// 发起群组申请
+  static const int GROUP_APPLY = 14;
 
-  /// 当掉线时，Android SDK 会自动重连，无需进行任何操作，通过注册连接监听来知道连接状态。
-  void onConnected() {}
-  void onDisconnected(int error) {}
+  /// 同意群组申请
+  static const int GROUP_APPLY_ACCEPT = 15;
+
+  /// 拒绝群组申请
+  static const int GROUP_APPLY_DECLINE = 16;
+
+  /// 邀请群成员
+  static const int GROUP_INVITE = 17;
+
+  /// 同意群组邀请
+  static const int GROUP_INVITE_ACCEPT = 18;
+
+  /// 拒绝群组邀请
+  static const int GROUP_INVITE_DECLINE = 19;
+
+  /// 将某人踢出群
+  static const int GROUP_KICK = 20;
+
+  /// 加入群组黑名单
+  static const int GROUP_BAN = 21; //加入群组黑名单
+
+  /// 移除群组黑名单
+  static const int GROUP_ALLOW = 22;
+
+  /// 屏蔽群组
+  static const int GROUP_BLOCK = 23;
+
+  /// 取消群组屏蔽
+  static const int GROUP_UNBLOCK = 24;
+
+  /// 转移群主
+  static const int GROUP_ASSIGN_OWNER = 25;
+
+  /// 添加管理员
+  static const int GROUP_ADD_ADMIN = 26;
+
+  /// 移除管理员
+  static const int GROUP_REMOVE_ADMIN = 27;
+
+  /// 禁言用户
+  static const int GROUP_ADD_MUTE = 28;
+
+  /// 移除禁言
+  static const int GROUP_REMOVE_MUTE = 29;
 }
 
-mixin EasemobListenerMixin<T extends StatefulWidget> on State<T> implements EasemobListener {
-  void onMessageReceived(List messages) {}
+abstract class EasemobListener {
+  void onEMMessageReceived(List messages) {}
 
-  void onCmdMessageReceived(List messages) {}
+  void onEMCmdMessageReceived(List messages) {}
 
-  void onMessageRead(List messages) {}
+  void onEMMessageRead(List messages) {}
 
-  void onMessageDelivered(List messages) {}
+  void onEMMessageDelivered(List messages) {}
 
-  void onMessageRecalled(List messages) {}
+  void onEMMessageRecalled(List messages) {}
 
-  void onMessageChanged(Map message, String change) {}
+  void onEMMessageChanged(Map message, String change) {}
 
-  void onContactAdded(String username) {}
+  void onEMContactAdded(String username) {}
 
-  void onContactDeleted(String username) {}
+  void onEMContactDeleted(String username) {}
 
-  void onContactInvited(String username, String reason) {}
+  void onEMContactInvited(String username, String reason) {}
 
-  void onFriendRequestAccepted(String username) {}
+  void onEMFriendRequestAccepted(String username) {}
 
-  void onFriendRequestDeclined(String username) {}
+  void onEMFriendRequestDeclined(String username) {}
 
   /// 当掉线时，Android SDK 会自动重连，无需进行任何操作，通过注册连接监听来知道连接状态。
-  void onConnected() {}
-  void onDisconnected(int error) {}
+  void onEMConnected() {}
+  void onEMDisconnected(int error) {}
+
+  /// EMMultiDeviceListener
+  void onEMContactEvent(int event, String target, String ext) {}
+  void onEMGroupEvent(int event, String target, List userNames) {}
+}
+
+mixin EasemobListenerMixin<T extends StatefulWidget> on State<T>
+    implements EasemobListener {
+  void onEMMessageReceived(List messages) {}
+
+  void onEMCmdMessageReceived(List messages) {}
+
+  void onEMMessageRead(List messages) {}
+
+  void onEMMessageDelivered(List messages) {}
+
+  void onEMMessageRecalled(List messages) {}
+
+  void onEMMessageChanged(Map message, String change) {}
+
+  void onEMContactAdded(String username) {}
+
+  void onEMContactDeleted(String username) {}
+
+  void onEMContactInvited(String username, String reason) {}
+
+  void onEMFriendRequestAccepted(String username) {}
+
+  void onEMFriendRequestDeclined(String username) {}
+
+  /// 当掉线时，Android SDK 会自动重连，无需进行任何操作，通过注册连接监听来知道连接状态。
+  void onEMConnected() {}
+  void onEMDisconnected(int error) {}
+
+  /// EMMultiDeviceListener
+  void onEMContactEvent(int event, String target, String ext) {}
+  void onEMGroupEvent(int event, String target, List userNames) {}
 }
