@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:meta/meta.dart';
+import 'package:flutter/material.dart';
+
 
 class Easemob {
   static const MethodChannel _channel =
@@ -520,7 +522,35 @@ class GroupStyle {
   static const publicOpenJoin = 'EMGroupStylePublicOpenJoin';
 }
 
-class EasemobListener {
+abstract class EasemobListener {
+  void onMessageReceived(List messages) {}
+
+  void onCmdMessageReceived(List messages) {}
+
+  void onMessageRead(List messages) {}
+
+  void onMessageDelivered(List messages) {}
+
+  void onMessageRecalled(List messages) {}
+
+  void onMessageChanged(Map message, String change) {}
+
+  void onContactAdded(String username) {}
+
+  void onContactDeleted(String username) {}
+
+  void onContactInvited(String username, String reason) {}
+
+  void onFriendRequestAccepted(String username) {}
+
+  void onFriendRequestDeclined(String username) {}
+
+  /// 当掉线时，Android SDK 会自动重连，无需进行任何操作，通过注册连接监听来知道连接状态。
+  void onConnected() {}
+  void onDisconnected(int error) {}
+}
+
+mixin EasemobListenerMixin<T extends StatefulWidget> on State<T> implements EasemobListener {
   void onMessageReceived(List messages) {}
 
   void onCmdMessageReceived(List messages) {}
