@@ -860,7 +860,7 @@ public class EasemobPlugin implements MethodCallHandler {
       @Override
       public void run() {
         conversation.markAllMessagesAsRead();
-        result.success(true);
+        resultRunOnUiThread(result, true, true);
       }
     });
   }
@@ -873,7 +873,7 @@ public class EasemobPlugin implements MethodCallHandler {
       @Override
       public void run() {
         conversation.markMessageAsRead(argument(call, "msgId", "$$required"));
-        result.success(true);
+        resultRunOnUiThread(result, true, true);
       }
     });
   }
@@ -884,7 +884,7 @@ public class EasemobPlugin implements MethodCallHandler {
       @Override
       public void run() {
         EMClient.getInstance().chatManager().markAllConversationsAsRead();
-        result.success(true);
+        resultRunOnUiThread(result, true, true);
       }
     });
   }
@@ -905,9 +905,11 @@ public class EasemobPlugin implements MethodCallHandler {
           for (EMMessage message : messages) {
             res.add(JSON.toJSONString(message));
           }
-          result.success(res);
+          resultRunOnUiThread(result, res, true);
         } catch (Throwable t) {
-          result.error("[method_loadMoreRoamingMessages]", t.getMessage(), null);
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_loadMoreRoamingMessages]", t.getMessage());
         }
       }
     });
@@ -922,9 +924,11 @@ public class EasemobPlugin implements MethodCallHandler {
           EMMessage message = EMClient.getInstance().chatManager().getMessage(
                   argument(call, "msgId", "$$required"));
           EMClient.getInstance().chatManager().recallMessage(message);
-          result.success(message.getMsgId());
+          resultRunOnUiThread(result, message.getMsgId(), true);
         } catch (Throwable t) {
-          result.error("[method_recallMessage]", t.getMessage(), null);
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_recallMessage]", t.getMessage());
         }
       }
     });
