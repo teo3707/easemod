@@ -204,8 +204,8 @@ class Easemob {
         .map((k, v) => MapEntry<String, Map>(k, json.decode(v)));
   }
 
-  /// return the message id
-  Future<String> sendMessage({
+  /// return the message
+  Future<Map> sendMessage({
     @required String to,
     String msgType = MessageType.txt,
     String chatType = ChatType.chat,
@@ -236,7 +236,7 @@ class Easemob {
       'action': action,
       'attributes': attributes,
     });
-    return res;
+    return json.decode(res);
   }
 
   /// throw PlatformException if error

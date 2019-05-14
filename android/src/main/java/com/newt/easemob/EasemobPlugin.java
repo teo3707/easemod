@@ -416,109 +416,117 @@ public class EasemobPlugin implements MethodCallHandler {
    * MethodCall arguments: to,
    */
   @SuppressWarnings("unused")
-  private void sendMessage(MethodCall call, Result result) {
-    EMMessage message;
-    String chatType = argument(call, "chatType", ChatType_chat);
-    String msgType = argument(call, "msgType", MessageType_txt);
-    String to = argument(call, "to", "$$required");
-    switch (msgType) {
-      case MessageType_txt:
-        message = EMMessage.createTxtSendMessage(
-                argument(call, "content", "$$required"), to);
-        break;
+  private void sendMessage(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        EMMessage message;
+        String chatType = argument(call, "chatType", ChatType_chat);
+        String msgType = argument(call, "msgType", MessageType_txt);
+        String to = argument(call, "to", "$$required");
+        switch (msgType) {
+          case MessageType_txt:
+            message = EMMessage.createTxtSendMessage(
+                    argument(call, "content", "$$required"), to);
+            break;
 
-      case MessageType_image:
-        message = EMMessage.createImageSendMessage(
-                argument(call, "filePath", "$$required"),
-                argument(call, "sendOriginalImage", true),
-                to);
-        break;
+          case MessageType_image:
+            message = EMMessage.createImageSendMessage(
+                    argument(call, "filePath", "$$required"),
+                    argument(call, "sendOriginalImage", true),
+                    to);
+            break;
 
-      case MessageType_location:
-        message = EMMessage.createLocationSendMessage(
-                argument(call, "latitude", 0.0D),
-                argument(call, "longitude", 0.0D),
-                argument(call, "locationAddress", ""),
-                to);
-        break;
+          case MessageType_location:
+            message = EMMessage.createLocationSendMessage(
+                    argument(call, "latitude", 0.0D),
+                    argument(call, "longitude", 0.0D),
+                    argument(call, "locationAddress", ""),
+                    to);
+            break;
 
-      case MessageType_file:
-        message = EMMessage.createFileSendMessage(
-                argument(call, "filePath", "$$required"),
-                to);
-        break;
+          case MessageType_file:
+            message = EMMessage.createFileSendMessage(
+                    argument(call, "filePath", "$$required"),
+                    to);
+            break;
 
-      case MessageType_voice:
-        message = EMMessage.createVoiceSendMessage(
-                argument(call, "filePath", "$$required"),
-                argument(call, "timeLength", 0),
-                to);
-        break;
+          case MessageType_voice:
+            message = EMMessage.createVoiceSendMessage(
+                    argument(call, "filePath", "$$required"),
+                    argument(call, "timeLength", 0),
+                    to);
+            break;
 
-      case MessageType_video:
-        message = EMMessage.createVideoSendMessage(
-                argument(call, "filePath", "$$required"),
-                argument(call, "imageThumbPath", ""),
-                argument(call, "timeLength", 0),
-                to);
-        break;
+          case MessageType_video:
+            message = EMMessage.createVideoSendMessage(
+                    argument(call, "filePath", "$$required"),
+                    argument(call, "imageThumbPath", ""),
+                    argument(call, "timeLength", 0),
+                    to);
+            break;
 
-      case MessageType_cmd:
-        message = EMMessage.createSendMessage(EMMessage.Type.CMD);
-        message.setTo(to);
-        EMCmdMessageBody cmdBody = new EMCmdMessageBody(argument(call, "action", "action"));
-        message.addBody(cmdBody);
-        break;
+          case MessageType_cmd:
+            message = EMMessage.createSendMessage(EMMessage.Type.CMD);
+            message.setTo(to);
+            EMCmdMessageBody cmdBody = new EMCmdMessageBody(argument(call, "action", "action"));
+            message.addBody(cmdBody);
+            break;
 
-      default:
-        result.error("[method_sendMessage]", "not support message type " + msgType, null);
-        return;
-    }
-
-    switch (chatType) {
-      case ChatType_chat:
-        message.setChatType(EMMessage.ChatType.Chat);
-        break;
-
-      case ChatType_groupChat:
-        message.setChatType(EMMessage.ChatType.GroupChat);
-        break;
-
-      case ChatType_chatRoom:
-        message.setChatType(EMMessage.ChatType.ChatRoom);
-        break;
-
-      default:
-        result.error("[method_sendMessage]", "not support chat type " + chatType, null);
-        return;
-    }
-
-    // 发送扩展消息
-    try {
-      Map<String, Object> attributes = argument(call, "attributes", new HashMap<String, Object>(0));
-      for (Map.Entry<String, Object> item : attributes.entrySet()) {
-        Object value = item.getValue();
-        if (value instanceof Integer) {
-          message.setAttribute(item.getKey(), (Integer) item.getValue());
-        } else if (value instanceof Long) {
-          message.setAttribute(item.getKey(), (Long) item.getValue());
-        } else if (value instanceof Boolean) {
-          message.setAttribute(item.getKey(), (Boolean) item.getValue());
-        } else if (value instanceof Map) {
-          message.setAttribute(item.getKey(), new org.json.JSONObject((Map)item.getValue()));
-        } else if (value instanceof List) {
-          message.setAttribute(item.getKey(), new org.json.JSONArray((List)item.getValue()));
-        } else {
-          message.setAttribute(item.getKey(), item.getValue().toString());
+          default:
+            resultRunOnUiThread(result, null, false,
+                    "[method_sendMessage]", "not support message type " + msgType);
+            return;
         }
-      }
-    } catch (Throwable t) {
-      // nothing need to do
-      t.printStackTrace();
-    }
 
-    EMClient.getInstance().chatManager().sendMessage(message);
-    result.success(message.getMsgId());
+        switch (chatType) {
+          case ChatType_chat:
+            message.setChatType(EMMessage.ChatType.Chat);
+            break;
+
+          case ChatType_groupChat:
+            message.setChatType(EMMessage.ChatType.GroupChat);
+            break;
+
+          case ChatType_chatRoom:
+            message.setChatType(EMMessage.ChatType.ChatRoom);
+            break;
+
+          default:
+            resultRunOnUiThread(result, null, false,
+                    "[method_sendMessage]", "not support chat type " + chatType);
+            return;
+        }
+
+        // 发送扩展消息
+        try {
+          Map<String, Object> attributes = argument(call, "attributes", new HashMap<String, Object>(0));
+          for (Map.Entry<String, Object> item : attributes.entrySet()) {
+            Object value = item.getValue();
+            if (value instanceof Integer) {
+              message.setAttribute(item.getKey(), (Integer) item.getValue());
+            } else if (value instanceof Long) {
+              message.setAttribute(item.getKey(), (Long) item.getValue());
+            } else if (value instanceof Boolean) {
+              message.setAttribute(item.getKey(), (Boolean) item.getValue());
+            } else if (value instanceof Map) {
+              message.setAttribute(item.getKey(), new org.json.JSONObject((Map)item.getValue()));
+            } else if (value instanceof List) {
+              message.setAttribute(item.getKey(), new org.json.JSONArray((List)item.getValue()));
+            } else {
+              message.setAttribute(item.getKey(), item.getValue().toString());
+            }
+          }
+        } catch (Throwable t) {
+          // nothing need to do
+          t.printStackTrace();
+        }
+
+        EMClient.getInstance().chatManager().sendMessage(message);
+        resultRunOnUiThread(result, JSON.toJSONString(message), true);
+      }
+    });
+
   }
 
   /**
