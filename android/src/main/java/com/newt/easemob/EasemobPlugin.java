@@ -1,16 +1,21 @@
 package com.newt.easemob;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.text.TextUtils;
 
 import com.alibaba.fastjson.JSON;
 import com.hyphenate.EMCallBack;
+import com.hyphenate.EMChatRoomChangeListener;
 import com.hyphenate.EMConnectionListener;
 import com.hyphenate.EMContactListener;
 import com.hyphenate.EMGroupChangeListener;
 import com.hyphenate.EMMessageListener;
 import com.hyphenate.EMMultiDeviceListener;
 import com.hyphenate.EMValueCallBack;
+import com.hyphenate.chat.EMCallStateChangeListener;
 import com.hyphenate.chat.EMChatRoom;
 import com.hyphenate.chat.EMClient;
 import com.hyphenate.chat.EMCmdMessageBody;
@@ -426,6 +431,83 @@ public class EasemobPlugin implements MethodCallHandler {
     public void onSharedFileDeleted(String groupId, String fileId) {
       eventSinkSuccess(event("onGroupSharedFileDeleted", "groupId", groupId,
               "fileId", fileId));
+    }
+  };
+
+  private EMChatRoomChangeListener chatRoomChangeListener = new EMChatRoomChangeListener() {
+    @Override
+    public void onChatRoomDestroyed(String roomId, String roomName) {
+      eventSinkSuccess(event("onChatRoomDestroyed", "roomId", roomId,
+              "roomName", roomName));
+    }
+
+    @Override
+    public void onMemberJoined(String roomId, String participant) {
+      eventSinkSuccess(event("onChatRoomMemberJoined", "roomId", roomId,
+              "participant", participant));
+    }
+
+    @Override
+    public void onMemberExited(String roomId, String roomName, String participant) {
+      eventSinkSuccess(event("onChatRoomMemberExited", "roomId", roomId,
+              "roomName", roomName,
+              "participant", participant));
+    }
+
+    @Override
+    public void onRemovedFromChatRoom(int reason, String roomId, String roomName, String participant) {
+      eventSinkSuccess(event("onChatRoomRemovedFromChatRoom", "roomId", roomId,
+              "roomName", roomName,
+              "participant", participant,
+              "reason", reason));
+    }
+
+    @Override
+    public void onMuteListAdded(String roomId, List<String> mutes, long expireTime) {
+      eventSinkSuccess(event("onChatRoomMuteListAdded", "roomId", roomId,
+              "members", mutes,
+              "expireTime", expireTime));
+    }
+
+    @Override
+    public void onMuteListRemoved(String roomId, List<String> mutes) {
+      eventSinkSuccess(event("onChatRoomMuteListRemoved", "roomId", roomId,
+              "members", mutes));
+    }
+
+    @Override
+    public void onAdminAdded(String roomId, String admin) {
+      eventSinkSuccess(event("onChatRoomAdminAdded", "roomId", roomId,
+              "admin", admin));
+    }
+
+    @Override
+    public void onAdminRemoved(String roomId, String admin) {
+      eventSinkSuccess(event("onChatRoomAdminRemoved", "roomId", roomId,
+              "admin", admin));
+    }
+
+    @Override
+    public void onOwnerChanged(String roomId, String newOwner, String oldOwner) {
+      eventSinkSuccess(event("onChatRoomOwnerChanged", "roomId", roomId,
+              "newOwner", newOwner,
+              "oldOwner", oldOwner));
+    }
+
+    @Override
+    public void onAnnouncementChanged(String roomId, String announcement) {
+      eventSinkSuccess(event("onChatRoomAnnouncementChanged", "roomId", roomId,
+              "announcement", announcement));
+    }
+  };
+
+  private EMCallStateChangeListener callStateChangeListener = new EMCallStateChangeListener() {
+    @Override
+    public void onCallStateChanged(CallState callState, CallError error) {
+      Map<String, Object> data = new HashMap<>(2);
+      data.put("callState", callState);
+      data.put("error", error);
+      eventSinkSuccess(event("onCallStateChanged", JSON.toJSONString(data)));
     }
   };
 
@@ -1023,6 +1105,22 @@ public class EasemobPlugin implements MethodCallHandler {
     EMClient.getInstance().addConnectionListener(connectionListener);
     EMClient.getInstance().addMultiDeviceListener(multiDeviceListener);
     EMClient.getInstance().groupManager().addGroupChangeListener(groupChangeListener);
+    EMClient.getInstance().chatroomManager().addChatRoomChangeListener(chatRoomChangeListener);
+
+    // 监听呼入通话
+    IntentFilter callFilter =
+            new IntentFilter(EMClient.getInstance().callManager().getIncomingCallBroadcastAction());
+    registrar.activity().registerReceiver(new CallReceiver(), callFilter);
+    EMClient.getInstance().callManager().addCallStateChangeListener(callStateChangeListener);
+  }
+
+  private class CallReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+      String from = intent.getStringExtra("from");
+      String type = intent.getStringExtra("type");
+      eventSinkSuccess(event("onIncomingCall", "from", from, "type", type));
+    }
   }
 
   @SuppressWarnings("unused")
@@ -1886,14 +1984,248 @@ public class EasemobPlugin implements MethodCallHandler {
       @Override
       public void run() {
         int pageSize = argument(call, "pageSize", 20);
-        int pageIndex = argument(call, "pageIndex", 1);
+        int pageIndex = argument(call, "pageIndex", 1); // start with 1
         try {
-          EMPageResult<EMChatRoom> rooms = EMClient.getInstance()
+          EMPageResult<EMChatRoom> pageResult = EMClient.getInstance()
                   .chatroomManager().fetchPublicChatRoomsFromServer(pageIndex, pageSize);
+          List<EMChatRoom> rooms = pageResult.getData();
+          List<String> res = new ArrayList<>(rooms.size());
+          for (EMChatRoom room : rooms) {
+            res.add(JSON.toJSONString(room));
+          }
+          resultRunOnUiThread(result, res, true);
         } catch (Throwable t) {
           t.printStackTrace();
           resultRunOnUiThread(result, null, false,
                   "[method_fetchPublicChatRoomsFromServer]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void fetchChatRoomFromServer(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String roomId = argument(call, "roomId", "$$required");
+        boolean fetchMembers = argument(call, "fetchMembers", true);
+        try {
+          EMChatRoom room = EMClient.getInstance()
+                  .chatroomManager().fetchChatRoomFromServer(roomId, fetchMembers);
+          resultRunOnUiThread(result, JSON.toJSONString(room), true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_fetchChatRoomFromServer]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void changeChatRoom(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String roomId = argument(call, "roomId", "$$required");
+        String subject = argument(call, "subject", null);
+        String description = argument(call, "description", null);
+        String announcement = argument(call, "announcement", null);
+        try {
+          if (subject != null) {
+            EMClient.getInstance().chatroomManager().changeChatRoomSubject(roomId, subject);
+          }
+          if (description != null) {
+            EMClient.getInstance().chatroomManager().changeChatroomDescription(roomId, description);
+          }
+          if (announcement != null) {
+            EMClient.getInstance().chatroomManager().updateChatRoomAnnouncement(roomId, announcement);
+          }
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_changeChatRoom]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void muteChatRoomMembers(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String roomId = argument(call, "roomId", "$$required");
+        long duration = argument(call, "duration", 12 * 30 * 24 * 60 * 60 * 1000L);
+        List<String> members = argument(call, "members", new ArrayList<String>(0));
+        try {
+          EMChatRoom room = EMClient.getInstance()
+                  .chatroomManager().muteChatRoomMembers(roomId, members, duration);
+          resultRunOnUiThread(result, JSON.toJSONString(room), true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_muteChatRoomMembers]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void unMuteChatRoomMembers(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String roomId = argument(call, "roomId", "$$required");
+        List<String> members = argument(call, "members", new ArrayList<String>(0));
+        try {
+          EMChatRoom room = EMClient.getInstance()
+                  .chatroomManager().unMuteChatRoomMembers(roomId, members);
+          resultRunOnUiThread(result, JSON.toJSONString(room), true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_unMuteChatRoomMembers]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void fetchChatRoomMuteList(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String roomId = argument(call, "roomId", "$$required");
+        int pageSize = argument(call, "pageSize", 20);
+        int pageIndex = argument(call, "pageIndex", 1); // ####### start with 1???
+        try {
+          Map<String, Long> res = EMClient.getInstance()
+                  .chatroomManager().fetchChatRoomMuteList(roomId, pageIndex, pageSize);
+          resultRunOnUiThread(result, res, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_fetchChatRoomMuteList]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void addChatRoomAdmin(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String roomId = argument(call, "roomId", "$$required");
+        String admin = argument(call, "admin", "$$required");
+        try {
+          EMChatRoom room = EMClient.getInstance().chatroomManager().addChatRoomAdmin(roomId, admin);
+          resultRunOnUiThread(result, JSON.toJSONString(room), true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_addChatRoomAdmin]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void removeChatRoomAdmin(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String roomId = argument(call, "roomId", "$$required");
+        String admin = argument(call, "admin", "$$required");
+        try {
+          EMChatRoom room = EMClient.getInstance().chatroomManager().removeChatRoomAdmin(roomId, admin);
+          resultRunOnUiThread(result, JSON.toJSONString(room), true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_removeChatRoomAdmin]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void blockChatRoomMembers(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String roomId = argument(call, "roomId", "$$required");
+        List<String> members = argument(call, "members", new ArrayList<String>(0));
+        try {
+          EMChatRoom room = EMClient.getInstance()
+                  .chatroomManager().blockChatroomMembers(roomId, members);
+          resultRunOnUiThread(result, JSON.toJSONString(room), true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_blockChatRoomMembers]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void unblockChatRoomMembers(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String roomId = argument(call, "roomId", "$$required");
+        List<String> members = argument(call, "members", new ArrayList<String>(0));
+        try {
+          EMChatRoom room = EMClient.getInstance()
+                  .chatroomManager().unblockChatRoomMembers(roomId, members);
+          resultRunOnUiThread(result, JSON.toJSONString(room), true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_unblockChatRoomMembers]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void fetchChatRoomBlackList(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String roomId = argument(call, "roomId", "$$required");
+        int pageSize = argument(call, "pageSize", 20);
+        int pageIndex = argument(call, "pageIndex", 1); // ####### start with 1???
+        try {
+          List<String> res = EMClient.getInstance()
+                  .chatroomManager().fetchChatRoomBlackList(roomId, pageIndex, pageSize);
+          resultRunOnUiThread(result, res, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_fetchChatRoomBlackList]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void fetchChatRoomAnnouncement(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String roomId = argument(call, "roomId", "$$required");
+        try {
+          String res = EMClient.getInstance().chatroomManager().fetchChatRoomAnnouncement(roomId);
+          resultRunOnUiThread(result, res, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_fetchChatRoomAnnouncement]", t.getMessage());
         }
       }
     });
