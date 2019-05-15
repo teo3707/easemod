@@ -7,8 +7,11 @@ import com.alibaba.fastjson.JSON;
 import com.hyphenate.EMCallBack;
 import com.hyphenate.EMConnectionListener;
 import com.hyphenate.EMContactListener;
+import com.hyphenate.EMGroupChangeListener;
 import com.hyphenate.EMMessageListener;
 import com.hyphenate.EMMultiDeviceListener;
+import com.hyphenate.EMValueCallBack;
+import com.hyphenate.chat.EMChatRoom;
 import com.hyphenate.chat.EMClient;
 import com.hyphenate.chat.EMCmdMessageBody;
 import com.hyphenate.chat.EMConversation;
@@ -18,7 +21,9 @@ import com.hyphenate.chat.EMGroupInfo;
 import com.hyphenate.chat.EMGroupManager;
 import com.hyphenate.chat.EMGroupOptions;
 import com.hyphenate.chat.EMMessage;
+import com.hyphenate.chat.EMMucSharedFile;
 import com.hyphenate.chat.EMOptions;
+import com.hyphenate.chat.EMPageResult;
 import com.hyphenate.push.EMPushConfig;
 
 import java.lang.reflect.Method;
@@ -282,6 +287,145 @@ public class EasemobPlugin implements MethodCallHandler {
           }
         }
       });
+    }
+  };
+
+  private void eventSinkSuccess(final Object o) {
+    registrar.activity().runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        if (eventSink != null) {
+          eventSink.success(o);
+        }
+      }
+    });
+  }
+
+  private EMGroupChangeListener groupChangeListener = new EMGroupChangeListener() {
+    @Override
+    public void onInvitationReceived(String groupId, String groupName, String inviter, String reason) {
+      eventSinkSuccess(event("onGroupInvitationReceived", "groupId", groupId,
+              "groupName", groupName,
+              "inviter", inviter,
+              "reason", reason));
+    }
+
+    @Override
+    public void onRequestToJoinReceived(String groupId, String groupName, String applicant, String reason) {
+      eventSinkSuccess(event("onGroupRequestToJoinReceived", "groupId", groupId,
+              "groupName", groupName,
+              "applicant", applicant,
+              "reason", reason));
+    }
+
+    @Override
+    public void onRequestToJoinAccepted(String groupId, String groupName, String acceptor) {
+      eventSinkSuccess(event("onGroupRequestToJoinAccepted", "groupId", groupId,
+              "groupName", groupName,
+              "acceptor", acceptor));
+    }
+
+    @Override
+    public void onRequestToJoinDeclined(String groupId, String groupName, String decliner, String reason) {
+      eventSinkSuccess(event("onGroupRequestToJoinDeclined", "groupId", groupId,
+              "groupName", groupName,
+              "decliner", decliner,
+              "reason", reason));
+    }
+
+    @Override
+    public void onInvitationAccepted(String groupId, String invitee, String reason) {
+      eventSinkSuccess(event("onGroupInvitationAccepted", "groupId", groupId,
+              "invitee", invitee,
+              "reason", reason));
+    }
+
+    @Override
+    public void onInvitationDeclined(String groupId, String invitee, String reason) {
+      eventSinkSuccess(event("onGroupInvitationDeclined", "groupId", groupId,
+              "invitee", invitee,
+              "reason", reason));
+    }
+
+    @Override
+    public void onUserRemoved(String groupId, String groupName) {
+      eventSinkSuccess(event("onGroupUserRemoved", "groupId", groupId,
+              "groupName", groupName));
+    }
+
+    @Override
+    public void onGroupDestroyed(String groupId, String groupName) {
+      eventSinkSuccess(event("onGroupDestroyed", "groupId", groupId,
+              "groupName", groupName));
+    }
+
+    @Override
+    public void onAutoAcceptInvitationFromGroup(String groupId, String inviter, String inviteMessage) {
+      eventSinkSuccess(event("onAutoAcceptInvitationFromGroup", "groupId", groupId,
+              "inviter", inviter,
+              "inviteMessage", inviteMessage));
+    }
+
+    @Override
+    public void onMuteListAdded(String groupId, List<String> mutes, long muteExpire) {
+      eventSinkSuccess(event("onGroupMuteListAdded", "groupId", groupId,
+              "mutes", mutes,
+              "muteExpire", muteExpire));
+    }
+
+    @Override
+    public void onMuteListRemoved(String groupId, List<String> mutes) {
+      eventSinkSuccess(event("onGroupMuteListRemoved", "groupId", groupId,
+              "mutes", mutes));
+    }
+
+    @Override
+    public void onAdminAdded(String groupId, String administrator) {
+      eventSinkSuccess(event("onGroupAdminAdded", "groupId", groupId,
+              "admin", administrator));
+    }
+
+    @Override
+    public void onAdminRemoved(String groupId, String administrator) {
+      eventSinkSuccess(event("onGroupAdminRemoved", "groupId", groupId,
+              "admin", administrator));
+    }
+
+    @Override
+    public void onOwnerChanged(String groupId, String newOwner, String oldOwner) {
+      eventSinkSuccess(event("onGroupOwnerChanged", "groupId", groupId,
+              "newOwner", newOwner,
+              "oldOwner", oldOwner));
+    }
+
+    @Override
+    public void onMemberJoined(String groupId, String member) {
+      eventSinkSuccess(event("onGroupMemberJoined", "groupId", groupId,
+              "member", member));
+    }
+
+    @Override
+    public void onMemberExited(String groupId, String member) {
+      eventSinkSuccess(event("onGroupMemberExited", "groupId", groupId,
+              "member", member));
+    }
+
+    @Override
+    public void onAnnouncementChanged(String groupId, String announcement) {
+      eventSinkSuccess(event("onGroupAnnouncementChanged", "groupId", groupId,
+              "announcement", announcement));
+    }
+
+    @Override
+    public void onSharedFileAdded(String groupId, EMMucSharedFile sharedFile) {
+      eventSinkSuccess(event("onGroupSharedFileAdded", "groupId", groupId,
+              "sharedFile", JSON.toJSONString(sharedFile)));
+    }
+
+    @Override
+    public void onSharedFileDeleted(String groupId, String fileId) {
+      eventSinkSuccess(event("onGroupSharedFileDeleted", "groupId", groupId,
+              "fileId", fileId));
     }
   };
 
@@ -590,23 +734,23 @@ public class EasemobPlugin implements MethodCallHandler {
 
   @SuppressWarnings("unused")
   private void getBlackListFromServer(MethodCall call, final Result result) {
-      executor.execute(new Runnable() {
-          @Override
-          public void run() {
-              try {
-                List<String> users = EMClient.getInstance().contactManager().getBlackListFromServer();
-                resultRunOnUiThread(result, users, true);
-              } catch (Throwable t) {
-                t.printStackTrace();
-                resultRunOnUiThread(
-                        result,
-                        null,
-                        false,
-                        "[method_getBlackListFromServer]",
-                        t.getMessage());
-              }
-          }
-      });
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          List<String> users = EMClient.getInstance().contactManager().getBlackListFromServer();
+          resultRunOnUiThread(result, users, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(
+                  result,
+                  null,
+                  false,
+                  "[method_getBlackListFromServer]",
+                  t.getMessage());
+        }
+      }
+    });
   }
 
   @SuppressWarnings("unused")
@@ -878,6 +1022,7 @@ public class EasemobPlugin implements MethodCallHandler {
     EMClient.getInstance().contactManager().setContactListener(emContactListener);
     EMClient.getInstance().addConnectionListener(connectionListener);
     EMClient.getInstance().addMultiDeviceListener(multiDeviceListener);
+    EMClient.getInstance().groupManager().addGroupChangeListener(groupChangeListener);
   }
 
   @SuppressWarnings("unused")
@@ -1315,19 +1460,27 @@ public class EasemobPlugin implements MethodCallHandler {
       @Override
       public void run() {
         String groupId = argument(call, "groupId", "$$required");
-        String changedGroupName = argument(call, "changedGroupName", "");
-        String description = argument(call, "description", "");
+        String changedGroupName = argument(call, "changedGroupName", null);
+        String description = argument(call, "description", null);
+        String announcement = argument(call, "announcement", null);
+        String extension = argument(call, "extension", null);
         try {
-          if (notEmptyStrings(changedGroupName)) {
+          if (changedGroupName != null) {
             EMClient.getInstance().groupManager().changeGroupName(groupId, changedGroupName);
           }
-          if (notEmptyStrings(description)) {
+          if (description != null) {
             EMClient.getInstance().groupManager().changeGroupDescription(groupId, description);
+          }
+          if (announcement != null) {
+            EMClient.getInstance().groupManager().updateGroupAnnouncement(groupId, announcement);
+          }
+          if (extension != null) {
+            EMClient.getInstance().groupManager().updateGroupExtension(groupId, extension);
           }
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
-          resultRunOnUiThread(result, true, false,
+          resultRunOnUiThread(result, null, false,
                   "[method_changeGroup]", t.getMessage());
         }
       }
@@ -1341,9 +1494,15 @@ public class EasemobPlugin implements MethodCallHandler {
       public void run() {
         String groupId = argument(call, "groupId", "$$required");
         boolean fetchMembers = argument(call, "fetchMembers", true);
+        boolean tryServerFirst = argument(call, "tryServerFirst", false);
         try {
-          EMGroup group = EMClient.getInstance().groupManager().getGroup(groupId);
-          if (group == null) {
+          EMGroup group;
+          if (tryServerFirst) {
+            group = EMClient.getInstance().groupManager().getGroupFromServer(groupId, fetchMembers);
+          } else {
+            group = EMClient.getInstance().groupManager().getGroup(groupId);
+          }
+          if (group == null && !tryServerFirst) {
             group = EMClient.getInstance().groupManager().getGroupFromServer(groupId, fetchMembers);
           }
           if (group == null) {
@@ -1354,8 +1513,387 @@ public class EasemobPlugin implements MethodCallHandler {
           }
         } catch (Throwable t) {
           t.printStackTrace();
-          resultRunOnUiThread(result, true, false,
+          resultRunOnUiThread(result, null, false,
                   "[method_getGroup]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void blockGroupMessage(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        try {
+          EMClient.getInstance().groupManager().blockGroupMessage(groupId);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_blockGroupMessage]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void unblockGroupMessage(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        try {
+          EMClient.getInstance().groupManager().unblockGroupMessage(groupId);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_unblockGroupMessage]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void blockGroupUser(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        String username = argument(call, "username", "$$required");
+        try {
+          EMClient.getInstance().groupManager().blockUser(groupId, username);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_blockGroupUser]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void unblockGroupUser(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        String username = argument(call, "username", "$$required");
+        try {
+          EMClient.getInstance().groupManager().unblockUser(groupId, username);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_unblockGroupUser]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void getGroupBlockedUsers(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        int pageSize = argument(call, "pageSize", 200);
+        // 统一从第一页开始
+        int pageIndex = argument(call, "pageIndex", 1) - 1;
+        try {
+          List<String> users =
+                  EMClient.getInstance().groupManager().getBlockedUsers(groupId, pageIndex, pageSize);
+          resultRunOnUiThread(result, users, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_getGroupBlockedUsers]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void muteGroupMembers(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        List<String> members = argument(call, "members", new ArrayList<String>(0));
+        long duration = argument(call, "duration", 12L * 30 * 24 * 60 * 60 * 1000);
+        try {
+          EMClient.getInstance().groupManager().muteGroupMembers(groupId, members, duration);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_muteGroupMembers]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void unMuteGroupMembers(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        List<String> members = argument(call, "members", new ArrayList<String>(0));
+        try {
+          EMClient.getInstance().groupManager().unMuteGroupMembers(groupId, members);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_unMuteGroupMembers]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void fetchGroupMuteList(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        int pageIndex = argument(call, "pageIndex", 1); // ######## 是否是从1开始??
+        int pageSize = argument(call, "pageSize", 200);
+        try {
+          Map<String, Long> res =
+                  EMClient.getInstance().groupManager().fetchGroupMuteList(groupId, pageIndex, pageSize);
+          resultRunOnUiThread(result, res, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_fetchGroupMuteList]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void fetchGroupAnnouncement(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        try {
+          String res = EMClient.getInstance().groupManager().fetchGroupAnnouncement(groupId);
+          resultRunOnUiThread(result, res, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_fetchGroupAnnouncement]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void uploadGroupSharedFile(final MethodCall call, final Result result) {
+    String eventChannel = argument(call, "eventChannel", "$$required");
+    final EventChannelManager eventChannelManager = new EventChannelManager(
+            registrar, "com.newt.easemob/upload_event_channel_" + eventChannel);
+    // tell flutter can user the event channel
+    resultRunOnUiThread(result, true, true);
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        String filePath = argument(call, "filePath", "$$required");
+        try {
+          final EMMucSharedFile emFile = EMClient.getInstance().groupManager().uploadGroupSharedFile(groupId, filePath, new EMCallBack() {
+            @Override
+            public void onSuccess() {
+            }
+
+            @Override
+            public void onError(final int code, final String error) {
+              eventChannelManager.success(event("onError", "error", error, "code", code));
+            }
+
+            @Override
+            public void onProgress(int progress, String status) {
+              eventChannelManager.success(event("onProgress", "progress", progress, "status", status));
+            }
+          });
+          eventChannelManager.success(event("onSuccess", JSON.toJSONString(emFile)));
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_uploadGroupSharedFile]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void deleteGroupSharedFile(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        String fileId = argument(call, "fileId", "$$required");
+        try {
+          EMClient.getInstance().groupManager().deleteGroupSharedFile(groupId, fileId);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_deleteGroupSharedFile]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void fetchGroupSharedFileList(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        int pageIndex = argument(call, "pageIndex", 1); // ######## 是否是从1开始??
+        int pageSize = argument(call, "pageSize", 200);
+        try {
+          List<EMMucSharedFile> files = EMClient.getInstance()
+                  .groupManager().fetchGroupSharedFileList(groupId, pageIndex, pageSize);
+          List<String> res = new ArrayList<>(files.size());
+          for (EMMucSharedFile file : files) {
+            res.add(JSON.toJSONString(file));
+          }
+          resultRunOnUiThread(result, res, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_fetchGroupSharedFileList]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void downloadGroupSharedFile(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String groupId = argument(call, "groupId", "$$required");
+        String fileId = argument(call, "fileId", "$$required");
+        String savePath = argument(call, "savePath", "$$required");
+        final String eventChannel = argument(call, "eventChannel", "$$required");
+        final EventChannelManager eventChannelManager = new EventChannelManager(
+                registrar, "com.newt.easemob/download_event_channel_" + eventChannel);
+        try {
+          EMClient.getInstance().groupManager().downloadGroupSharedFile(groupId, fileId, savePath, new EMCallBack() {
+            @Override
+            public void onSuccess() {
+              eventChannelManager.success(event("onSuccess"));
+            }
+
+            @Override
+            public void onError(int code, String error) {
+              eventChannelManager.success(event("onError", "code", code, "error", error));
+            }
+
+            @Override
+            public void onProgress(int progress, String status) {
+              eventChannelManager.success(event("onProgress", "progress", "status", status));
+            }
+          });
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_downloadGroupSharedFile]", t.getMessage());
+        }
+      }
+    });
+  }
+
+
+  // ------ chat room -----
+
+  @SuppressWarnings("unused")
+  private void createChatRoom(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String subject = argument(call, "subject", "");
+        String description = argument(call, "description", "");
+        String welcomeMessage = argument(call, "welcomeMessage", "");
+        List<String> members = argument(call, "members", new ArrayList<String>(0));
+        int maxUserCount = argument(call, "maxUserCount", 5000);
+        try {
+          EMChatRoom chatRoom = EMClient.getInstance().chatroomManager().createChatRoom(
+                  subject, description, welcomeMessage, maxUserCount, members);
+          resultRunOnUiThread(result, JSON.toJSONString(chatRoom), true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_createChatRoom]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void joinChatRoom(final MethodCall call, final Result result) {
+    String roomId = argument(call, "roomId", "$$required");
+    EMClient.getInstance().chatroomManager().joinChatRoom(roomId, new EMValueCallBack<EMChatRoom>() {
+      @Override
+      public void onSuccess(EMChatRoom value) {
+        resultRunOnUiThread(result, JSON.toJSONString(value), true);
+      }
+
+      @Override
+      public void onError(int error, String errorMsg) {
+        resultRunOnUiThread(result, error, false, "[method_joinChatRoom]", errorMsg);
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void leaveChatRoom(final MethodCall call, final Result result) {
+    String roomId = argument(call, "roomId", "$$required");
+    EMClient.getInstance().chatroomManager().leaveChatRoom(roomId);
+    result.success(true);
+  }
+
+  @SuppressWarnings("unused")
+  private void destroyChatRoom(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        String roomId = argument(call, "roomId", "$$required");
+        try {
+          EMClient.getInstance().chatroomManager().destroyChatRoom(roomId);
+          resultRunOnUiThread(result, true, true);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_destroyChatRoom]", t.getMessage());
+        }
+      }
+    });
+  }
+
+  @SuppressWarnings("unused")
+  private void fetchPublicChatRoomsFromServer(final MethodCall call, final Result result) {
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        int pageSize = argument(call, "pageSize", 20);
+        int pageIndex = argument(call, "pageIndex", 1);
+        try {
+          EMPageResult<EMChatRoom> rooms = EMClient.getInstance()
+                  .chatroomManager().fetchPublicChatRoomsFromServer(pageIndex, pageSize);
+        } catch (Throwable t) {
+          t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_fetchPublicChatRoomsFromServer]", t.getMessage());
         }
       }
     });

@@ -97,13 +97,149 @@ class Easemob {
             break;
 
           case 'onContactEvent':
-            listener.onEMContactEvent(data['data']['event'],
+            listener.onEMMultiDeviceContactEvent(data['data']['event'],
                 data['data']['target'], data['data']['ext']);
             break;
 
           case 'onGroupEvent':
-            listener.onEMGroupEvent(data['data']['event'],
+            listener.onEMMultiDeviceGroupEvent(data['data']['event'],
                 data['data']['target'], data['data']['userNames']);
+            break;
+
+          case 'onGroupInvitationReceived':
+            listener.onEMGroupInvitationReceived(
+              data['data']['groupId'],
+              data['data']['groupName'],
+              data['data']['inviter'],
+              data['data']['reason'],
+            );
+            break;
+
+          case 'onGroupRequestToJoinReceived':
+            listener.onEMGroupRequestToJoinReceived(
+              data['data']['groupId'],
+              data['data']['groupName'],
+              data['data']['applicant'],
+              data['data']['reason'],
+            );
+            break;
+
+          case 'onGroupRequestToJoinAccepted':
+            listener.onEMGroupRequestToJoinAccepted(
+              data['data']['groupId'],
+              data['data']['groupName'],
+              data['data']['acceptor'],
+            );
+            break;
+
+          case 'onGroupRequestToJoinDeclined':
+            listener.onEMGroupRequestToJoinDeclined(
+              data['data']['groupId'],
+              data['data']['groupName'],
+              data['data']['decliner'],
+              data['data']['reason'],
+            );
+            break;
+
+          case 'onGroupInvitationAccepted':
+            listener.onEMGroupInvitationAccepted(
+              data['data']['groupId'],
+              data['data']['invitee'],
+              data['data']['reason'],
+            );
+            break;
+
+          case 'onGroupInvitationDeclined':
+            listener.onEMGroupInvitationDeclined(
+              data['data']['groupId'],
+              data['data']['invitee'],
+              data['data']['reason'],
+            );
+            break;
+
+          // current user has been removed from the group
+          case 'onGroupUserRemoved':
+            listener.onEMGroupUserRemoved(
+                data['data']['groupId'], data['data']['groupName']);
+            break;
+
+          case 'onGroupDestroyed':
+            listener.onEMGroupDestroyed(
+              data['data']['groupId'],
+              data['data']['groupName'],
+            );
+            break;
+
+          case 'onAutoAcceptInvitationFromGroup':
+            listener.onEMAutoAcceptInvitationFromGroup(
+              data['data']['groupId'],
+              data['data']['inviter'],
+              data['data']['inviteMessage'],
+            );
+            break;
+
+          case 'onGroupMuteListRemoved':
+            listener.onEMGroupMuteListRemoved(
+              data['data']['groupId'],
+              data['data']['mutes'].cast(),
+            );
+            break;
+
+          case 'onGroupAdminAdded':
+            listener.onEMGroupAdminAdded(
+              data['data']['groupId'],
+              data['data']['admin'],
+            );
+            break;
+
+          case 'onGroupAdminRemoved':
+            listener.onEMGroupAdminRemoved(
+              data['data']['groupId'],
+              data['data']['admin'],
+            );
+            break;
+
+          case 'onGroupOwnerChanged':
+            listener.onEMGroupOwnerChanged(
+              data['data']['groupId'],
+              data['data']['newOwner'],
+              data['data']['oldOwner'],
+            );
+            break;
+
+          case 'onGroupMemberJoined':
+            listener.onEMGroupMemberJoined(
+              data['data']['groupId'],
+              data['data']['member'],
+            );
+            break;
+
+          case 'onGroupMemberExited':
+            listener.onEMGroupMemberExited(
+              data['data']['groupId'],
+              data['data']['member'],
+            );
+            break;
+
+          case 'onGroupAnnouncementChanged':
+            listener.onEMGroupAnnouncementChanged(
+              data['data']['groupId'],
+              data['data']['announcement'],
+            );
+            break;
+
+          case 'onGroupSharedFileAdded':
+            listener.onEMGroupSharedFileAdded(
+              data['data']['groupId'],
+              json.decode(data['data']['sharedFile']),
+            );
+            break;
+
+          case 'onGroupSharedFileDeleted':
+            listener.onEMGroupSharedFileDeleted(
+              data['data']['groupId'],
+              data['data']['fileId'],
+            );
             break;
 
           default:
@@ -616,33 +752,276 @@ class Easemob {
     return groups.cast();
   }
 
-  /// 修改群组名称｜描述
+  /// 修改群组名称｜描述｜群公告｜群扩展字段
   Future<bool> changeGroup({
     @required groupId,
     String changedGroupName,
     String description,
+    String announcement,
+    String extension,
   }) async {
     final bool res = await _channel.invokeMethod('changeGroup', {
       'groupId': groupId,
       'changedGroupName': changedGroupName,
       'description': description,
+      'announcement': announcement,
+      'extension': extension,
     });
     return res;
   }
 
   /// 群组信息，先尝试在本地获取，若没有找到，尝试在服务器获取
   /// @param fetchMembers 在服务器获取时是否获取群成员
+  /// @param tryServerFirst 是否优先在服务器获取
   Future<Map> getGroup({
     @required String groupId,
     bool fetchMembers = true,
+    bool tryServerFirst = false,
   }) async {
     final String res = await _channel.invokeMethod('getGroup', {
       'groupId': groupId,
       'fetchMembers': fetchMembers,
+      'tryServerFirst': tryServerFirst,
     });
     return json.decode(res);
   }
+
+  /// 屏蔽群消息
+  /// 不允许 Owner 权限的调用。
+  /// 屏蔽群消息后，就不能接收到此群的消息（还是群里面的成员，但不再接收消息）
+  /// @see http://docs-im.easemob.com/im/android/basics/group#%E5%B1%8F%E8%94%BD%E7%BE%A4%E6%B6%88%E6%81%AF
+  Future<bool> blockGroupMessage(String groupId) async {
+    final bool res = await _channel.invokeMethod('blockGroupMessage', {
+      'groupId': groupId,
+    });
+    return res;
+  }
+
+  /// 解除屏蔽群
+  Future<bool> unblockGroupMessage(String groupId) async {
+    final bool res = await _channel.invokeMethod('unblockGroupMessage', {
+      'groupId': groupId,
+    });
+    return res;
+  }
+
+  /// 将用户加到群组的黑名单，被加入黑名单的用户无法加入群，无法收发此群的消息
+  /// 只有群主才能设置群的黑名单
+  Future<bool> blockGroupUser({
+    @required String groupId,
+    @required String username,
+  }) async {
+    final bool res = await _channel.invokeMethod('blockGroupUser', {
+      'groupId': groupId,
+      'username': username,
+    });
+    return res;
+  }
+
+  /// 将用户移除出群黑名单
+  Future<bool> unblockGroupUser({
+    @required String groupId,
+    @required String username,
+  }) async {
+    final bool res = await _channel.invokeMethod('unblockGroupUser', {
+      'groupId': groupId,
+      'username': username,
+    });
+    return res;
+  }
+
+  /// 获取群组的黑名单用户列表
+  /// 默认最多取200个成员（只有群主才能调用此函数）
+  /// @param pageIndex 从1开始
+  Future<List<String>> getGroupBlockedUsers({
+    @required groupId,
+    int pageIndex = 1,
+    int pageSize = 200,
+  }) async {
+    final List res = await _channel.invokeMethod('getGroupBlockedUsers', {
+      'groupId': groupId,
+      'pageIndex': pageIndex,
+      'pageSize': pageSize,
+    });
+    return res.cast();
+  }
+
+  /// @see http://docs-im.easemob.com/im/android/basics/group#%E7%BE%A4%E7%BB%84%E7%A6%81%E8%A8%80%E6%93%8D%E4%BD%9C
+  /// 禁止某些群组成员发言, 需要群组拥有者或者管理员权限
+  /// @param duration 禁言的时间，单位是毫秒
+  Future<bool> muteGroupMembers({
+    @required String groupId,
+    @required List<String> members,
+    int duration = 12 * 30 * 24 * 60 * 60 * 1000,
+  }) async {
+    final bool res = await _channel.invokeMethod('muteGroupMembers', {
+      'groupId': groupId,
+      'members': members,
+      'duration': duration,
+    });
+    return res;
+  }
+
+  Future<bool> unMuteGroupMembers({
+    @required String groupId,
+    @required List<String> members,
+  }) async {
+    final bool res = await _channel.invokeMethod('unMuteGroupMembers', {
+      'groupId': groupId,
+      'members': members,
+    });
+    return res;
+  }
+
+  /// 获取群成员禁言列表
+  /// @param pageIndex 不确定是否是从1开始??
+  /// @return Map<String, int>, key is username, int is mute duration.
+  Future<Map<String, int>> fetchGroupMuteList({
+    @required String groupId,
+    int pageIndex = 1,
+    int pageSize = 200,
+  }) async {
+    final Map res = await _channel.invokeMethod('fetchGroupMuteList', {
+      'groupId': groupId,
+      'pageSize': pageSize,
+      'pageIndex': pageIndex,
+    });
+    return res.cast();
+  }
+
+  /// 获取群公告
+  Future<String> fetchGroupAnnouncement(String groupId) async {
+    final String res = await _channel.invokeMethod('fetchGroupAnnouncement', {
+      'groupId': groupId,
+    });
+    return res;
+  }
+
+  Future<void> uploadGroupSharedFile({
+    @required String groupId,
+    @required String filePath,
+    OnEMUploadSuccess onSuccess,
+    OnEMError onError,
+    OnEMProgress onProgress,
+  }) async {
+    String channel = '$_id';
+    await _channel.invokeMethod('uploadGroupSharedFile', {
+      'groupId': groupId,
+      'filePath': filePath,
+      'eventChannel': channel,
+    }).then((res) {
+      EventChannel eventChannel =
+          EventChannel('com.newt.easemob/upload_event_channel_$channel');
+      eventChannel.receiveBroadcastStream().listen((event) {
+        switch (event['event']) {
+          case 'onSuccess':
+            if (onSuccess != null) {
+              onSuccess(json.decode(event['data']));
+            }
+            break;
+
+          case 'onError':
+            if (onError != null) {
+              onError(event['data']['code'], event['data']['error']);
+            }
+            break;
+
+          case 'onProgress':
+            if (onProgress != null) {
+              onProgress(event['data']['progress'], event['data']['status']);
+            }
+            break;
+
+          default:
+            print('not supported $event');
+        }
+      });
+    }).catchError(print);
+  }
+
+  static int _index = 0;
+  get _id => _index++;
+
+  /// 删除群共享文件
+  Future<bool> deleteGroupSharedFile({
+    @required String groupId,
+    @required String fileId,
+  }) async {
+    final bool res = await _channel.invokeMethod('deleteGroupSharedFile', {
+      'groupId': groupId,
+      'fileId': fileId,
+    });
+    return res;
+  }
+
+  /// 获取群共享文件列表
+  /// @param pageIndex ???? start 0 or 1 ????
+  Future<List<Map>> fetchGroupSharedFileList(
+      {@required String groupId, int pageIndex = 1, pageSize = 200}) async {
+    final List res = await _channel.invokeMethod('fetchGroupSharedFileList', {
+      'groupId': groupId,
+      'pageIndex': pageIndex,
+      'pageSize': pageSize,
+    });
+    return List<Map>.generate(res.length, (idx) => json.decode(res[idx]));
+  }
+
+  /// 下载群共享文件
+  /// 下载群里的某个共享文件，注意callback只做进度回调用
+  Future<void> downloadGroupSharedFile({
+    @required String groupId,
+    @required String fileId,
+    @required String savePath,
+    OnEMSuccess onSuccess,
+    OnEMError onError,
+    OnEMProgress onProgress,
+  }) async {
+    String channel = '$_id';
+    await _channel.invokeMethod('downloadGroupSharedFile', {
+      'groupId': groupId,
+      'fileId': fileId,
+      'savePath': savePath,
+      'eventChannel': channel,
+    }).then((res) {
+      EventChannel eventChannel =
+          EventChannel('com.newt.easemob/download_event_channel_$channel');
+      eventChannel.receiveBroadcastStream().listen((event) {
+        switch (event['event']) {
+          case 'onSuccess':
+            if (onSuccess != null) {
+              onSuccess();
+            }
+            break;
+
+          case 'onError':
+            if (onError != null) {
+              onError(event['data']['code'], event['data']['error']);
+            }
+            break;
+
+          case 'onProgress':
+            if (onProgress != null) {
+              onProgress(event['data']['progress'], event['data']['status']);
+            }
+            break;
+
+          default:
+            print('not supported $event');
+        }
+      });
+    }).catchError(print);
+
+
+    //// --- chat room ---
+
+
+  }
 }
+
+typedef void OnEMUploadSuccess(Map file);
+typedef void OnEMSuccess();
+typedef void OnEMError(int code, String error);
+typedef void OnEMProgress(int progress, String status);
 
 /// @see enum EMMessage.ChatType
 class ChatType {
@@ -796,8 +1175,40 @@ abstract class EasemobListener {
   void onEMDisconnected(int error) {}
 
   /// EMMultiDeviceListener
-  void onEMContactEvent(int event, String target, String ext) {}
-  void onEMGroupEvent(int event, String target, List userNames) {}
+  void onEMMultiDeviceContactEvent(int event, String target, String ext) {}
+  void onEMMultiDeviceGroupEvent(int event, String target, List userNames) {}
+
+  /// 群组事件
+  void onEMGroupInvitationReceived(
+      String groupId, String groupName, String inviter, String reason) {}
+  void onEMGroupRequestToJoinReceived(
+      String groupId, String groupName, String applicant, String reason) {}
+  void onEMGroupRequestToJoinAccepted(
+      String groupId, String groupName, String acceptor) {}
+  void onEMGroupRequestToJoinDeclined(
+      String groupId, String groupName, String decliner, String reason) {}
+  void onEMGroupInvitationAccepted(
+      String groupId, String invitee, String reason) {}
+  void onEMGroupInvitationDeclined(
+      String groupId, String invitee, String reason) {}
+
+  /// current user has been removed from the group
+  void onEMGroupUserRemoved(String groupId, String groupName) {}
+  void onEMGroupDestroyed(String groupId, String groupName) {}
+  void onEMAutoAcceptInvitationFromGroup(
+      String groupId, String inviter, String inviteMessage) {}
+  void onEMGroupMuteListAdded(
+      String groupId, List<String> mutes, int muteExpire) {}
+  void onEMGroupMuteListRemoved(String groupId, List<String> mutes) {}
+  void onEMGroupAdminAdded(String groupId, String administrator) {}
+  void onEMGroupAdminRemoved(String groupId, String administrator) {}
+  void onEMGroupOwnerChanged(
+      String groupId, String newOwner, String oldOwner) {}
+  void onEMGroupMemberJoined(String groupId, String member) {}
+  void onEMGroupMemberExited(String groupId, String member) {}
+  void onEMGroupAnnouncementChanged(String groupId, String announcement);
+  void onEMGroupSharedFileAdded(String groupId, Map sharedFile) {}
+  void onEMGroupSharedFileDeleted(String groupId, String fileId) {}
 }
 
 mixin EasemobListenerMixin<T extends StatefulWidget> on State<T>
@@ -829,6 +1240,38 @@ mixin EasemobListenerMixin<T extends StatefulWidget> on State<T>
   void onEMDisconnected(int error) {}
 
   /// EMMultiDeviceListener
-  void onEMContactEvent(int event, String target, String ext) {}
-  void onEMGroupEvent(int event, String target, List userNames) {}
+  void onEMMultiDeviceContactEvent(int event, String target, String ext) {}
+  void onEMMultiDeviceGroupEvent(int event, String target, List userNames) {}
+
+  /// 群组事件
+  void onEMGroupInvitationReceived(
+      String groupId, String groupName, String inviter, String reason) {}
+  void onEMGroupRequestToJoinReceived(
+      String groupId, String groupName, String applicant, String reason) {}
+  void onEMGroupRequestToJoinAccepted(
+      String groupId, String groupName, String acceptor) {}
+  void onEMGroupRequestToJoinDeclined(
+      String groupId, String groupName, String decliner, String reason) {}
+  void onEMGroupInvitationAccepted(
+      String groupId, String invitee, String reason) {}
+  void onEMGroupInvitationDeclined(
+      String groupId, String invitee, String reason) {}
+
+  /// current user has been removed from the group
+  void onEMGroupUserRemoved(String groupId, String groupName) {}
+  void onEMGroupDestroyed(String groupId, String groupName) {}
+  void onEMAutoAcceptInvitationFromGroup(
+      String groupId, String inviter, String inviteMessage) {}
+  void onEMGroupMuteListAdded(
+      String groupId, List<String> mutes, int muteExpire) {}
+  void onEMGroupMuteListRemoved(String groupId, List<String> mutes) {}
+  void onEMGroupAdminAdded(String groupId, String administrator) {}
+  void onEMGroupAdminRemoved(String groupId, String administrator) {}
+  void onEMGroupOwnerChanged(
+      String groupId, String newOwner, String oldOwner) {}
+  void onEMGroupMemberJoined(String groupId, String member) {}
+  void onEMGroupMemberExited(String groupId, String member) {}
+  void onEMGroupAnnouncementChanged(String groupId, String announcement);
+  void onEMGroupSharedFileAdded(String groupId, Map sharedFile) {}
+  void onEMGroupSharedFileDeleted(String groupId, String fileId) {}
 }
