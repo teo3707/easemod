@@ -1271,7 +1271,7 @@ mixin EasemobListenerMixin<T extends StatefulWidget> on State<T>
       String groupId, String newOwner, String oldOwner) {}
   void onEMGroupMemberJoined(String groupId, String member) {}
   void onEMGroupMemberExited(String groupId, String member) {}
-  void onEMGroupAnnouncementChanged(String groupId, String announcement);
+  void onEMGroupAnnouncementChanged(String groupId, String announcement) {}
   void onEMGroupSharedFileAdded(String groupId, Map sharedFile) {}
   void onEMGroupSharedFileDeleted(String groupId, String fileId) {}
 }
