@@ -53,6 +53,7 @@ public class EasemobPlugin implements MethodCallHandler {
   private final Context context;
   private EventChannel.EventSink eventSink;
   private Executor executor = Executors.newFixedThreadPool(4);
+  private final EMClient emClient;
 
   /// some const values `DartClassName_Field = value`
   private static final String ChatType_chat = "Chat";
@@ -76,7 +77,6 @@ public class EasemobPlugin implements MethodCallHandler {
   private static final String GroupStyle_privateMemberCanInvite = "EMGroupStylePrivateMemberCanInvite";
   private static final String GroupStyle_publicJoinNeedApproval = "EMGroupStylePublicJoinNeedApproval";
   private static final String GroupStyle_publicOpenJoin = "EMGroupStylePublicOpenJoin";
-
 
   private final EMMessageListener emMessageListener = new EMMessageListener() {
     @Override
@@ -532,7 +532,13 @@ public class EasemobPlugin implements MethodCallHandler {
       }
     });
 
+    emClient = getProxyInstance();
   }
+
+  private EMClient getProxyInstance() {
+    return EMClient.getInstance();
+  }
+
 
   @Override
   public void onMethodCall(MethodCall call, Result result) {
@@ -583,7 +589,7 @@ public class EasemobPlugin implements MethodCallHandler {
   @SuppressWarnings("unused")
   private void acceptInvitation(MethodCall call, Result result) {
     try {
-      EMClient.getInstance().contactManager().acceptInvitation(
+      emClient.contactManager().acceptInvitation(
               argument(call, "username", "")
       );
       result.success(true);
@@ -595,7 +601,7 @@ public class EasemobPlugin implements MethodCallHandler {
   @SuppressWarnings("unused")
   private void declineInvitation(MethodCall call, Result result) {
     try {
-      EMClient.getInstance().contactManager().declineInvitation(
+      emClient.contactManager().declineInvitation(
               argument(call, "username", "")
       );
       result.success(true);
@@ -611,9 +617,9 @@ public class EasemobPlugin implements MethodCallHandler {
    */
   @SuppressWarnings("unused")
   private void getAllConversations(MethodCall call, Result result) {
-    EMClient.getInstance().chatManager().loadAllConversations();
+    emClient.chatManager().loadAllConversations();
     Map<String, EMConversation> conversations
-            = EMClient.getInstance().chatManager().getAllConversations();
+            = emClient.chatManager().getAllConversations();
     Map<String, String> res = new HashMap<>(conversations.size());
     // simple way to handle enum type
     for (Map.Entry item : conversations.entrySet()) {
@@ -629,7 +635,7 @@ public class EasemobPlugin implements MethodCallHandler {
    */
   @SuppressWarnings("unused")
   private void deleteConversation(MethodCall call, Result result) {
-    EMClient.getInstance().chatManager().deleteConversation(
+    emClient.chatManager().deleteConversation(
             argument(call, "conversationId", ""),
             argument(call, "deleteMessages", true));
     result.success(true);
@@ -638,7 +644,7 @@ public class EasemobPlugin implements MethodCallHandler {
   @SuppressWarnings("unused")
   private void deleteConversationMessage(MethodCall call, Result result) {
     EMConversation conversation =
-            EMClient.getInstance().chatManager().getConversation(
+            emClient.chatManager().getConversation(
                     argument(call, "conversationId", "$$required"));
     conversation.removeMessage(argument(call, "msgId", "$$required"));
     result.success(true);
@@ -651,12 +657,12 @@ public class EasemobPlugin implements MethodCallHandler {
     for (String message : stringMessages) {
       messages.add((EMMessage) JSON.parse(message));
     }
-    EMClient.getInstance().chatManager().importMessages(messages);
+    emClient.chatManager().importMessages(messages);
   }
 
   private void deleteContact(MethodCall call, Result result) {
     try {
-      EMClient.getInstance().contactManager().deleteContact(
+      emClient.contactManager().deleteContact(
               argument(call, "username", ""),
               argument(call, "keepConversation", false)
       );
@@ -666,6 +672,111 @@ public class EasemobPlugin implements MethodCallHandler {
     }
   }
 
+  private EMMessage createMessage(MethodCall call) {
+    String msgType = argument(call, "msgType", MessageType_txt);
+    String to = argument(call, "to", "$$required");
+
+    EMMessage message;
+    switch (msgType) {
+      case MessageType_txt:
+        message = EMMessage.createTxtSendMessage(
+                argument(call, "content", "$$required"), to);
+        break;
+
+      case MessageType_image:
+        message = EMMessage.createImageSendMessage(
+                argument(call, "filePath", "$$required"),
+                argument(call, "sendOriginalImage", true),
+                to);
+        break;
+
+      case MessageType_location:
+        message = EMMessage.createLocationSendMessage(
+                argument(call, "latitude", 0.0D),
+                argument(call, "longitude", 0.0D),
+                argument(call, "locationAddress", ""),
+                to);
+        break;
+
+      case MessageType_file:
+        message = EMMessage.createFileSendMessage(
+                argument(call, "filePath", "$$required"),
+                to);
+        break;
+
+      case MessageType_voice:
+        message = EMMessage.createVoiceSendMessage(
+                argument(call, "filePath", "$$required"),
+                argument(call, "timeLength", 0),
+                to);
+        break;
+
+      case MessageType_video:
+        message = EMMessage.createVideoSendMessage(
+                argument(call, "filePath", "$$required"),
+                argument(call, "imageThumbPath", ""),
+                argument(call, "timeLength", 0),
+                to);
+        break;
+
+      case MessageType_cmd:
+        message = EMMessage.createSendMessage(EMMessage.Type.CMD);
+        message.setTo(to);
+        EMCmdMessageBody cmdBody = new EMCmdMessageBody(argument(call, "action", "action"));
+        message.addBody(cmdBody);
+        break;
+
+      default:
+        return null;
+    }
+    return message;
+  }
+
+  private void setChatType(EMMessage message, String chatType) {
+    switch (chatType) {
+      case ChatType_chat:
+        message.setChatType(EMMessage.ChatType.Chat);
+        break;
+
+      case ChatType_groupChat:
+        message.setChatType(EMMessage.ChatType.GroupChat);
+        break;
+
+      case ChatType_chatRoom:
+        message.setChatType(EMMessage.ChatType.ChatRoom);
+        break;
+
+      default:
+        message.setChatType(EMMessage.ChatType.Chat);
+    }
+  }
+
+  private void setMessageAttributes(EMMessage message, MethodCall call) {
+    // 发送扩展消息
+    Map<String, Object> attributes = argument(call, "attributes", new HashMap<String, Object>(0));
+    for (Map.Entry<String, Object> item : attributes.entrySet()) {
+      try {
+        Object value = item.getValue();
+        if (value instanceof Integer) {
+          message.setAttribute(item.getKey(), (Integer) item.getValue());
+        } else if (value instanceof Long) {
+          message.setAttribute(item.getKey(), (Long) item.getValue());
+        } else if (value instanceof Boolean) {
+          message.setAttribute(item.getKey(), (Boolean) item.getValue());
+        } else if (value instanceof Map) {
+          message.setAttribute(item.getKey(), new org.json.JSONObject((Map) item.getValue()));
+        } else if (value instanceof List) {
+          message.setAttribute(item.getKey(), new org.json.JSONArray((List) item.getValue()));
+        } else {
+          message.setAttribute(item.getKey(), item.getValue().toString());
+        }
+      } catch (Throwable t) {
+        // nothing need to do
+        t.printStackTrace();
+
+      }
+    }
+  }
   /**
    * send message
    * MethodCall arguments: to,
@@ -675,110 +786,24 @@ public class EasemobPlugin implements MethodCallHandler {
     executor.execute(new Runnable() {
       @Override
       public void run() {
-        EMMessage message;
-        String chatType = argument(call, "chatType", ChatType_chat);
-        String msgType = argument(call, "msgType", MessageType_txt);
-        String to = argument(call, "to", "$$required");
-        switch (msgType) {
-          case MessageType_txt:
-            message = EMMessage.createTxtSendMessage(
-                    argument(call, "content", "$$required"), to);
-            break;
-
-          case MessageType_image:
-            message = EMMessage.createImageSendMessage(
-                    argument(call, "filePath", "$$required"),
-                    argument(call, "sendOriginalImage", true),
-                    to);
-            break;
-
-          case MessageType_location:
-            message = EMMessage.createLocationSendMessage(
-                    argument(call, "latitude", 0.0D),
-                    argument(call, "longitude", 0.0D),
-                    argument(call, "locationAddress", ""),
-                    to);
-            break;
-
-          case MessageType_file:
-            message = EMMessage.createFileSendMessage(
-                    argument(call, "filePath", "$$required"),
-                    to);
-            break;
-
-          case MessageType_voice:
-            message = EMMessage.createVoiceSendMessage(
-                    argument(call, "filePath", "$$required"),
-                    argument(call, "timeLength", 0),
-                    to);
-            break;
-
-          case MessageType_video:
-            message = EMMessage.createVideoSendMessage(
-                    argument(call, "filePath", "$$required"),
-                    argument(call, "imageThumbPath", ""),
-                    argument(call, "timeLength", 0),
-                    to);
-            break;
-
-          case MessageType_cmd:
-            message = EMMessage.createSendMessage(EMMessage.Type.CMD);
-            message.setTo(to);
-            EMCmdMessageBody cmdBody = new EMCmdMessageBody(argument(call, "action", "action"));
-            message.addBody(cmdBody);
-            break;
-
-          default:
+        try {
+          String msgType = argument(call, "msgType", MessageType_txt);
+          EMMessage message = createMessage(call);
+          if (message == null) {
             resultRunOnUiThread(result, null, false,
                     "[method_sendMessage]", "not support message type " + msgType);
             return;
-        }
-
-        switch (chatType) {
-          case ChatType_chat:
-            message.setChatType(EMMessage.ChatType.Chat);
-            break;
-
-          case ChatType_groupChat:
-            message.setChatType(EMMessage.ChatType.GroupChat);
-            break;
-
-          case ChatType_chatRoom:
-            message.setChatType(EMMessage.ChatType.ChatRoom);
-            break;
-
-          default:
-            resultRunOnUiThread(result, null, false,
-                    "[method_sendMessage]", "not support chat type " + chatType);
-            return;
-        }
-
-        // 发送扩展消息
-        try {
-          Map<String, Object> attributes = argument(call, "attributes", new HashMap<String, Object>(0));
-          for (Map.Entry<String, Object> item : attributes.entrySet()) {
-            Object value = item.getValue();
-            if (value instanceof Integer) {
-              message.setAttribute(item.getKey(), (Integer) item.getValue());
-            } else if (value instanceof Long) {
-              message.setAttribute(item.getKey(), (Long) item.getValue());
-            } else if (value instanceof Boolean) {
-              message.setAttribute(item.getKey(), (Boolean) item.getValue());
-            } else if (value instanceof Map) {
-              message.setAttribute(item.getKey(), new org.json.JSONObject((Map)item.getValue()));
-            } else if (value instanceof List) {
-              message.setAttribute(item.getKey(), new org.json.JSONArray((List)item.getValue()));
-            } else {
-              message.setAttribute(item.getKey(), item.getValue().toString());
-            }
           }
+          String chatType = argument(call, "chatType", ChatType_chat);
+          setChatType(message, chatType);
+          setMessageAttributes(message, call);
+          emClient.chatManager().sendMessage(message);
+          resultRunOnUiThread(result, JSON.toJSONString(message), true);
         } catch (Throwable t) {
-          // nothing need to do
           t.printStackTrace();
+          resultRunOnUiThread(result, null, false,
+                  "[method_sendMessage]", t.getMessage());
         }
-
-        EMClient.getInstance().chatManager().sendMessage(message);
-        resultRunOnUiThread(result, JSON.toJSONString(message), true);
       }
     });
 
@@ -793,7 +818,7 @@ public class EasemobPlugin implements MethodCallHandler {
   @SuppressWarnings("unused")
   private void loadMoreMsgFromDB(MethodCall call, Result result) {
     String conversationId = argument(call, "conversationId", "$$required");
-    EMConversation conversation = EMClient.getInstance().chatManager().getConversation(conversationId);
+    EMConversation conversation = emClient.chatManager().getConversation(conversationId);
     if (conversation == null) {
       result.error("[method_loadMoreFromDB]", "conversation `" + conversationId + "` not exist", true);
       return;
@@ -820,7 +845,7 @@ public class EasemobPlugin implements MethodCallHandler {
       @Override
       public void run() {
         try {
-          List<String> users = EMClient.getInstance().contactManager().getBlackListFromServer();
+          List<String> users = emClient.contactManager().getBlackListFromServer();
           resultRunOnUiThread(result, users, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -837,7 +862,7 @@ public class EasemobPlugin implements MethodCallHandler {
 
   @SuppressWarnings("unused")
   private void getBlackListUserNames(MethodCall call,Result result) {
-    List<String> users = EMClient.getInstance().contactManager().getBlackListUsernames();
+    List<String> users = emClient.contactManager().getBlackListUsernames();
     if (users == null) {
       users = new ArrayList<>(0);
     }
@@ -852,7 +877,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String username = argument(call, "username", "$$required");
         boolean both = argument(call, "both", true);
         try {
-          EMClient.getInstance().contactManager().addUserToBlackList(username, both);
+          emClient.contactManager().addUserToBlackList(username, both);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -870,7 +895,7 @@ public class EasemobPlugin implements MethodCallHandler {
       public void run() {
         String username = argument(call, "username", "$$required");
         try {
-          EMClient.getInstance().contactManager().removeUserFromBlackList(username);
+          emClient.contactManager().removeUserFromBlackList(username);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -889,7 +914,7 @@ public class EasemobPlugin implements MethodCallHandler {
         try {
           String username = argument(call, "username", "$$required");
           String password = argument(call, "password", "$$required");
-          EMClient.getInstance().createAccount(username, password);
+          emClient.createAccount(username, password);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -906,7 +931,7 @@ public class EasemobPlugin implements MethodCallHandler {
       @Override
       public void run() {
         try {
-          List<String> ids = EMClient.getInstance().contactManager().getSelfIdsOnOtherPlatform();
+          List<String> ids = emClient.contactManager().getSelfIdsOnOtherPlatform();
           resultRunOnUiThread(result, ids, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -919,7 +944,7 @@ public class EasemobPlugin implements MethodCallHandler {
 
   private void addContact(MethodCall call, Result result) {
     try {
-      EMClient.getInstance().contactManager().addContact(
+      emClient.contactManager().addContact(
               argument(call, "username", ""),
               argument(call, "reason", ""));
       result.success(true);
@@ -933,7 +958,7 @@ public class EasemobPlugin implements MethodCallHandler {
       @Override
       public void run() {
         try {
-          List<String> contacts = EMClient.getInstance().contactManager().getAllContactsFromServer();
+          List<String> contacts = emClient.contactManager().getAllContactsFromServer();
           resultRunOnUiThread(result, contacts, true);
         } catch (Throwable t) {
           result.error("[method_getAllContactsFromServer]", t.getMessage(), false);
@@ -961,7 +986,7 @@ public class EasemobPlugin implements MethodCallHandler {
     String id = argument(call, "id", null);
     String password = argument(call, "password", null);
     if (notEmptyStrings(id, password)) {
-      EMClient.getInstance().login(id, password, new EMCallBack() {
+      emClient.login(id, password, new EMCallBack() {
         @Override
         public void onSuccess() {
           resultRunOnUiThread(result, true, true);
@@ -986,7 +1011,7 @@ public class EasemobPlugin implements MethodCallHandler {
   }
 
   private void logout(MethodCall call, final Result result) {
-    EMClient.getInstance().logout(argument(call, "unbindToken", true), new EMCallBack() {
+    emClient.logout(argument(call, "unbindToken", true), new EMCallBack() {
       @Override
       public void onSuccess() {
         resultRunOnUiThread(result, true, true);
@@ -1084,8 +1109,8 @@ public class EasemobPlugin implements MethodCallHandler {
       pushConfigBuilder.enableOppoPush(appKey, appId);
     }
     options.setPushConfig(pushConfigBuilder.build());
-    EMClient.getInstance().init(context, options);
-    EMClient.getInstance().setDebugMode(argument(call, "debugMode", false));
+    emClient.init(context, options);
+    emClient.setDebugMode(argument(call, "debugMode", false));
     initListener();
   }
 
@@ -1100,18 +1125,18 @@ public class EasemobPlugin implements MethodCallHandler {
 
   // 注册消息监听,通过EventChannel通知Flutter
   private void initListener() {
-    EMClient.getInstance().chatManager().addMessageListener(emMessageListener);
-    EMClient.getInstance().contactManager().setContactListener(emContactListener);
-    EMClient.getInstance().addConnectionListener(connectionListener);
-    EMClient.getInstance().addMultiDeviceListener(multiDeviceListener);
-    EMClient.getInstance().groupManager().addGroupChangeListener(groupChangeListener);
-    EMClient.getInstance().chatroomManager().addChatRoomChangeListener(chatRoomChangeListener);
+    emClient.chatManager().addMessageListener(emMessageListener);
+    emClient.contactManager().setContactListener(emContactListener);
+    emClient.addConnectionListener(connectionListener);
+    emClient.addMultiDeviceListener(multiDeviceListener);
+    emClient.groupManager().addGroupChangeListener(groupChangeListener);
+    emClient.chatroomManager().addChatRoomChangeListener(chatRoomChangeListener);
 
     // 监听呼入通话
     IntentFilter callFilter =
-            new IntentFilter(EMClient.getInstance().callManager().getIncomingCallBroadcastAction());
+            new IntentFilter(emClient.callManager().getIncomingCallBroadcastAction());
     registrar.activity().registerReceiver(new CallReceiver(), callFilter);
-    EMClient.getInstance().callManager().addCallStateChangeListener(callStateChangeListener);
+    emClient.callManager().addCallStateChangeListener(callStateChangeListener);
   }
 
   private class CallReceiver extends BroadcastReceiver {
@@ -1125,7 +1150,7 @@ public class EasemobPlugin implements MethodCallHandler {
 
   @SuppressWarnings("unused")
   private void getConversionInfo(MethodCall call, Result result) {
-    final EMConversation conversation = EMClient.getInstance().chatManager().getConversation(
+    final EMConversation conversation = emClient.chatManager().getConversation(
             argument(call, "conversationId", "$$required"));
     result.success(new HashMap<String, Object>(){{
       put("unreadMsgCount", conversation.getUnreadMsgCount());
@@ -1165,7 +1190,7 @@ public class EasemobPlugin implements MethodCallHandler {
     executor.execute(new Runnable() {
       @Override
       public void run() {
-        EMClient.getInstance().chatManager().markAllConversationsAsRead();
+        emClient.chatManager().markAllConversationsAsRead();
         resultRunOnUiThread(result, true, true);
       }
     });
@@ -1177,7 +1202,7 @@ public class EasemobPlugin implements MethodCallHandler {
       @Override
       public void run() {
         try {
-          EMCursorResult<EMMessage> cursor = EMClient.getInstance().chatManager().fetchHistoryMessages(
+          EMCursorResult<EMMessage> cursor = emClient.chatManager().fetchHistoryMessages(
                   argument(call, "conversationId", "$$required"),
                   conversationType(argument(call, "conversationType", ConversationType_chat)),
                   argument(call, "pageSize", 10),
@@ -1203,9 +1228,9 @@ public class EasemobPlugin implements MethodCallHandler {
       @Override
       public void run() {
         try {
-          EMMessage message = EMClient.getInstance().chatManager().getMessage(
+          EMMessage message = emClient.chatManager().getMessage(
                   argument(call, "msgId", "$$required"));
-          EMClient.getInstance().chatManager().recallMessage(message);
+          emClient.chatManager().recallMessage(message);
           resultRunOnUiThread(result, message.getMsgId(), true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1217,7 +1242,7 @@ public class EasemobPlugin implements MethodCallHandler {
   }
 
   private EMConversation getConversation(String id) {
-    return EMClient.getInstance().chatManager().getConversation(id);
+    return emClient.chatManager().getConversation(id);
   }
 
   private EMConversation.EMConversationType conversationType(String type) {
@@ -1269,7 +1294,7 @@ public class EasemobPlugin implements MethodCallHandler {
         List<String> allMembers = argument(call, "members", new ArrayList<String>(0));
         String[] members = allMembers.toArray(new String[0]);
         try {
-          EMGroup group = EMClient.getInstance()
+          EMGroup group = emClient
                   .groupManager()
                   .createGroup(groupName, desc, members, reason, option);
           resultRunOnUiThread(result, JSON.toJSONString(group), true);
@@ -1289,7 +1314,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String groupId = argument(call, "groupId", "$$required");
         String admin = argument(call, "admin", "$$required");
         try {
-          EMGroup group = EMClient.getInstance().groupManager().addGroupAdmin(groupId, admin);
+          EMGroup group = emClient.groupManager().addGroupAdmin(groupId, admin);
           resultRunOnUiThread(result, JSON.toJSONString(group), true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1308,7 +1333,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String groupId = argument(call, "groupId", "$$required");
         String admin = argument(call, "admin", "$$required");
         try {
-          EMGroup group = EMClient.getInstance().groupManager().removeGroupAdmin(groupId, admin);
+          EMGroup group = emClient.groupManager().removeGroupAdmin(groupId, admin);
           resultRunOnUiThread(result, JSON.toJSONString(group), true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1327,7 +1352,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String groupId = argument(call, "groupId", "$$required");
         String newOwner = argument(call, "newOwner", "$$required");
         try {
-          EMGroup group = EMClient.getInstance().groupManager().changeOwner(groupId, newOwner);
+          EMGroup group = emClient.groupManager().changeOwner(groupId, newOwner);
           resultRunOnUiThread(result, JSON.toJSONString(group), true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1347,16 +1372,16 @@ public class EasemobPlugin implements MethodCallHandler {
         String reason = argument(call, "reason", "");
         List<String> allMembers = argument(call, "members", new ArrayList<String>(0));
         String[] members = allMembers.toArray(new String[0]);
-        EMGroup group = EMClient.getInstance().groupManager().getGroup(groupId);
+        EMGroup group = emClient.groupManager().getGroup(groupId);
         if (group == null) {
           resultRunOnUiThread(result, true, false,
                   "[method_addUserToGroup]", "group `" + groupId +"` does not exists");
         } else {
           try {
-            if (EMClient.getInstance().getCurrentUser().equals(group.getOwner())) {
-              EMClient.getInstance().groupManager().addUsersToGroup(groupId, members);
+            if (emClient.getCurrentUser().equals(group.getOwner())) {
+              emClient.groupManager().addUsersToGroup(groupId, members);
             } else {
-              EMClient.getInstance().groupManager().inviteUser(groupId, members, reason);
+              emClient.groupManager().inviteUser(groupId, members, reason);
             }
             resultRunOnUiThread(result, true, true);
           } catch (Throwable t) {
@@ -1377,7 +1402,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String groupId = argument(call, "groupId", "$$required");
         String username = argument(call, "username", "$$required");
         try {
-          EMClient.getInstance().groupManager().removeUserFromGroup(groupId, username);
+          emClient.groupManager().removeUserFromGroup(groupId, username);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1395,16 +1420,16 @@ public class EasemobPlugin implements MethodCallHandler {
       public void run() {
         String groupId = argument(call, "groupId", "$$required");
         String reason = argument(call, "reason", "");
-        EMGroup group = EMClient.getInstance().groupManager().getGroup(groupId);
+        EMGroup group = emClient.groupManager().getGroup(groupId);
         if (group == null) {
           resultRunOnUiThread(result, true, false,
                   "[method_joinOrApplyJoinGroup]", "group `" + groupId +"` does not exists");
         } else {
           try {
             if (group.isMemberOnly()) {
-              EMClient.getInstance().groupManager().applyJoinToGroup(groupId, reason);
+              emClient.groupManager().applyJoinToGroup(groupId, reason);
             } else {
-              EMClient.getInstance().groupManager().joinGroup(groupId);
+              emClient.groupManager().joinGroup(groupId);
             }
             resultRunOnUiThread(result, true, true);
           } catch (Throwable t) {
@@ -1424,7 +1449,7 @@ public class EasemobPlugin implements MethodCallHandler {
       public void run() {
         String groupId = argument(call, "groupId", "$$required");
         try {
-          EMClient.getInstance().groupManager().leaveGroup(groupId);
+          emClient.groupManager().leaveGroup(groupId);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1442,7 +1467,7 @@ public class EasemobPlugin implements MethodCallHandler {
       public void run() {
         try {
           String groupId = argument(call, "groupId", "$$required");
-          EMClient.getInstance().groupManager().destroyGroup(groupId);
+          emClient.groupManager().destroyGroup(groupId);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1493,9 +1518,9 @@ public class EasemobPlugin implements MethodCallHandler {
         List<EMGroup> groups;
         try {
           if (fetchAll) {
-            groups = EMClient.getInstance().groupManager().getJoinedGroupsFromServer();
+            groups = emClient.groupManager().getJoinedGroupsFromServer();
           } else {
-            groups = EMClient.getInstance().groupManager().getJoinedGroupsFromServer(pageIndex, pageSize);
+            groups = emClient.groupManager().getJoinedGroupsFromServer(pageIndex, pageSize);
           }
           List<String> res = new ArrayList<>(groups.size());
           for (EMGroup group : groups) {
@@ -1516,7 +1541,7 @@ public class EasemobPlugin implements MethodCallHandler {
     executor.execute(new Runnable() {
       @Override
       public void run() {
-        List<EMGroup> groups = EMClient.getInstance().groupManager().getAllGroups();
+        List<EMGroup> groups = emClient.groupManager().getAllGroups();
         List<String> res = new ArrayList<>(groups.size());
         for (EMGroup group : groups) {
           res.add(JSON.toJSONString(group));
@@ -1534,7 +1559,7 @@ public class EasemobPlugin implements MethodCallHandler {
         final int pageSize = argument(call, "pageSize", 20);
         String cursor = argument(call, "cursor", "");
         try {
-          final EMCursorResult<EMGroupInfo> emResult = EMClient.getInstance()
+          final EMCursorResult<EMGroupInfo> emResult = emClient
                   .groupManager()
                   .getPublicGroupsFromServer(pageSize, cursor);
           resultRunOnUiThread(result, new HashMap<String, Object>(3) {{
@@ -1564,16 +1589,16 @@ public class EasemobPlugin implements MethodCallHandler {
         String extension = argument(call, "extension", null);
         try {
           if (changedGroupName != null) {
-            EMClient.getInstance().groupManager().changeGroupName(groupId, changedGroupName);
+            emClient.groupManager().changeGroupName(groupId, changedGroupName);
           }
           if (description != null) {
-            EMClient.getInstance().groupManager().changeGroupDescription(groupId, description);
+            emClient.groupManager().changeGroupDescription(groupId, description);
           }
           if (announcement != null) {
-            EMClient.getInstance().groupManager().updateGroupAnnouncement(groupId, announcement);
+            emClient.groupManager().updateGroupAnnouncement(groupId, announcement);
           }
           if (extension != null) {
-            EMClient.getInstance().groupManager().updateGroupExtension(groupId, extension);
+            emClient.groupManager().updateGroupExtension(groupId, extension);
           }
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
@@ -1596,12 +1621,12 @@ public class EasemobPlugin implements MethodCallHandler {
         try {
           EMGroup group;
           if (tryServerFirst) {
-            group = EMClient.getInstance().groupManager().getGroupFromServer(groupId, fetchMembers);
+            group = emClient.groupManager().getGroupFromServer(groupId, fetchMembers);
           } else {
-            group = EMClient.getInstance().groupManager().getGroup(groupId);
+            group = emClient.groupManager().getGroup(groupId);
           }
           if (group == null && !tryServerFirst) {
-            group = EMClient.getInstance().groupManager().getGroupFromServer(groupId, fetchMembers);
+            group = emClient.groupManager().getGroupFromServer(groupId, fetchMembers);
           }
           if (group == null) {
             resultRunOnUiThread(result, true, false,
@@ -1625,7 +1650,7 @@ public class EasemobPlugin implements MethodCallHandler {
       public void run() {
         String groupId = argument(call, "groupId", "$$required");
         try {
-          EMClient.getInstance().groupManager().blockGroupMessage(groupId);
+          emClient.groupManager().blockGroupMessage(groupId);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1643,7 +1668,7 @@ public class EasemobPlugin implements MethodCallHandler {
       public void run() {
         String groupId = argument(call, "groupId", "$$required");
         try {
-          EMClient.getInstance().groupManager().unblockGroupMessage(groupId);
+          emClient.groupManager().unblockGroupMessage(groupId);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1662,7 +1687,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String groupId = argument(call, "groupId", "$$required");
         String username = argument(call, "username", "$$required");
         try {
-          EMClient.getInstance().groupManager().blockUser(groupId, username);
+          emClient.groupManager().blockUser(groupId, username);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1681,7 +1706,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String groupId = argument(call, "groupId", "$$required");
         String username = argument(call, "username", "$$required");
         try {
-          EMClient.getInstance().groupManager().unblockUser(groupId, username);
+          emClient.groupManager().unblockUser(groupId, username);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1703,7 +1728,7 @@ public class EasemobPlugin implements MethodCallHandler {
         int pageIndex = argument(call, "pageIndex", 1) - 1;
         try {
           List<String> users =
-                  EMClient.getInstance().groupManager().getBlockedUsers(groupId, pageIndex, pageSize);
+                  emClient.groupManager().getBlockedUsers(groupId, pageIndex, pageSize);
           resultRunOnUiThread(result, users, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1723,7 +1748,7 @@ public class EasemobPlugin implements MethodCallHandler {
         List<String> members = argument(call, "members", new ArrayList<String>(0));
         long duration = argument(call, "duration", 12L * 30 * 24 * 60 * 60 * 1000);
         try {
-          EMClient.getInstance().groupManager().muteGroupMembers(groupId, members, duration);
+          emClient.groupManager().muteGroupMembers(groupId, members, duration);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1742,7 +1767,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String groupId = argument(call, "groupId", "$$required");
         List<String> members = argument(call, "members", new ArrayList<String>(0));
         try {
-          EMClient.getInstance().groupManager().unMuteGroupMembers(groupId, members);
+          emClient.groupManager().unMuteGroupMembers(groupId, members);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1763,7 +1788,7 @@ public class EasemobPlugin implements MethodCallHandler {
         int pageSize = argument(call, "pageSize", 200);
         try {
           Map<String, Long> res =
-                  EMClient.getInstance().groupManager().fetchGroupMuteList(groupId, pageIndex, pageSize);
+                  emClient.groupManager().fetchGroupMuteList(groupId, pageIndex, pageSize);
           resultRunOnUiThread(result, res, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1781,7 +1806,7 @@ public class EasemobPlugin implements MethodCallHandler {
       public void run() {
         String groupId = argument(call, "groupId", "$$required");
         try {
-          String res = EMClient.getInstance().groupManager().fetchGroupAnnouncement(groupId);
+          String res = emClient.groupManager().fetchGroupAnnouncement(groupId);
           resultRunOnUiThread(result, res, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1805,7 +1830,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String groupId = argument(call, "groupId", "$$required");
         String filePath = argument(call, "filePath", "$$required");
         try {
-          final EMMucSharedFile emFile = EMClient.getInstance().groupManager().uploadGroupSharedFile(groupId, filePath, new EMCallBack() {
+          final EMMucSharedFile emFile = emClient.groupManager().uploadGroupSharedFile(groupId, filePath, new EMCallBack() {
             @Override
             public void onSuccess() {
             }
@@ -1838,7 +1863,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String groupId = argument(call, "groupId", "$$required");
         String fileId = argument(call, "fileId", "$$required");
         try {
-          EMClient.getInstance().groupManager().deleteGroupSharedFile(groupId, fileId);
+          emClient.groupManager().deleteGroupSharedFile(groupId, fileId);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1858,7 +1883,7 @@ public class EasemobPlugin implements MethodCallHandler {
         int pageIndex = argument(call, "pageIndex", 1); // ######## 是否是从1开始??
         int pageSize = argument(call, "pageSize", 200);
         try {
-          List<EMMucSharedFile> files = EMClient.getInstance()
+          List<EMMucSharedFile> files = emClient
                   .groupManager().fetchGroupSharedFileList(groupId, pageIndex, pageSize);
           List<String> res = new ArrayList<>(files.size());
           for (EMMucSharedFile file : files) {
@@ -1886,7 +1911,7 @@ public class EasemobPlugin implements MethodCallHandler {
         final EventChannelManager eventChannelManager = new EventChannelManager(
                 registrar, "com.newt.easemob/download_event_channel_" + eventChannel);
         try {
-          EMClient.getInstance().groupManager().downloadGroupSharedFile(groupId, fileId, savePath, new EMCallBack() {
+          emClient.groupManager().downloadGroupSharedFile(groupId, fileId, savePath, new EMCallBack() {
             @Override
             public void onSuccess() {
               eventChannelManager.success(event("onSuccess"));
@@ -1925,7 +1950,7 @@ public class EasemobPlugin implements MethodCallHandler {
         List<String> members = argument(call, "members", new ArrayList<String>(0));
         int maxUserCount = argument(call, "maxUserCount", 5000);
         try {
-          EMChatRoom chatRoom = EMClient.getInstance().chatroomManager().createChatRoom(
+          EMChatRoom chatRoom = emClient.chatroomManager().createChatRoom(
                   subject, description, welcomeMessage, maxUserCount, members);
           resultRunOnUiThread(result, JSON.toJSONString(chatRoom), true);
         } catch (Throwable t) {
@@ -1940,7 +1965,7 @@ public class EasemobPlugin implements MethodCallHandler {
   @SuppressWarnings("unused")
   private void joinChatRoom(final MethodCall call, final Result result) {
     String roomId = argument(call, "roomId", "$$required");
-    EMClient.getInstance().chatroomManager().joinChatRoom(roomId, new EMValueCallBack<EMChatRoom>() {
+    emClient.chatroomManager().joinChatRoom(roomId, new EMValueCallBack<EMChatRoom>() {
       @Override
       public void onSuccess(EMChatRoom value) {
         resultRunOnUiThread(result, JSON.toJSONString(value), true);
@@ -1956,7 +1981,7 @@ public class EasemobPlugin implements MethodCallHandler {
   @SuppressWarnings("unused")
   private void leaveChatRoom(final MethodCall call, final Result result) {
     String roomId = argument(call, "roomId", "$$required");
-    EMClient.getInstance().chatroomManager().leaveChatRoom(roomId);
+    emClient.chatroomManager().leaveChatRoom(roomId);
     result.success(true);
   }
 
@@ -1967,7 +1992,7 @@ public class EasemobPlugin implements MethodCallHandler {
       public void run() {
         String roomId = argument(call, "roomId", "$$required");
         try {
-          EMClient.getInstance().chatroomManager().destroyChatRoom(roomId);
+          emClient.chatroomManager().destroyChatRoom(roomId);
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -1986,7 +2011,7 @@ public class EasemobPlugin implements MethodCallHandler {
         int pageSize = argument(call, "pageSize", 20);
         int pageIndex = argument(call, "pageIndex", 1); // start with 1
         try {
-          EMPageResult<EMChatRoom> pageResult = EMClient.getInstance()
+          EMPageResult<EMChatRoom> pageResult = emClient
                   .chatroomManager().fetchPublicChatRoomsFromServer(pageIndex, pageSize);
           List<EMChatRoom> rooms = pageResult.getData();
           List<String> res = new ArrayList<>(rooms.size());
@@ -2011,7 +2036,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String roomId = argument(call, "roomId", "$$required");
         boolean fetchMembers = argument(call, "fetchMembers", true);
         try {
-          EMChatRoom room = EMClient.getInstance()
+          EMChatRoom room = emClient
                   .chatroomManager().fetchChatRoomFromServer(roomId, fetchMembers);
           resultRunOnUiThread(result, JSON.toJSONString(room), true);
         } catch (Throwable t) {
@@ -2034,13 +2059,13 @@ public class EasemobPlugin implements MethodCallHandler {
         String announcement = argument(call, "announcement", null);
         try {
           if (subject != null) {
-            EMClient.getInstance().chatroomManager().changeChatRoomSubject(roomId, subject);
+            emClient.chatroomManager().changeChatRoomSubject(roomId, subject);
           }
           if (description != null) {
-            EMClient.getInstance().chatroomManager().changeChatroomDescription(roomId, description);
+            emClient.chatroomManager().changeChatroomDescription(roomId, description);
           }
           if (announcement != null) {
-            EMClient.getInstance().chatroomManager().updateChatRoomAnnouncement(roomId, announcement);
+            emClient.chatroomManager().updateChatRoomAnnouncement(roomId, announcement);
           }
           resultRunOnUiThread(result, true, true);
         } catch (Throwable t) {
@@ -2061,7 +2086,7 @@ public class EasemobPlugin implements MethodCallHandler {
         long duration = argument(call, "duration", 12 * 30 * 24 * 60 * 60 * 1000L);
         List<String> members = argument(call, "members", new ArrayList<String>(0));
         try {
-          EMChatRoom room = EMClient.getInstance()
+          EMChatRoom room = emClient
                   .chatroomManager().muteChatRoomMembers(roomId, members, duration);
           resultRunOnUiThread(result, JSON.toJSONString(room), true);
         } catch (Throwable t) {
@@ -2081,7 +2106,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String roomId = argument(call, "roomId", "$$required");
         List<String> members = argument(call, "members", new ArrayList<String>(0));
         try {
-          EMChatRoom room = EMClient.getInstance()
+          EMChatRoom room = emClient
                   .chatroomManager().unMuteChatRoomMembers(roomId, members);
           resultRunOnUiThread(result, JSON.toJSONString(room), true);
         } catch (Throwable t) {
@@ -2102,7 +2127,7 @@ public class EasemobPlugin implements MethodCallHandler {
         int pageSize = argument(call, "pageSize", 20);
         int pageIndex = argument(call, "pageIndex", 1); // ####### start with 1???
         try {
-          Map<String, Long> res = EMClient.getInstance()
+          Map<String, Long> res = emClient
                   .chatroomManager().fetchChatRoomMuteList(roomId, pageIndex, pageSize);
           resultRunOnUiThread(result, res, true);
         } catch (Throwable t) {
@@ -2122,7 +2147,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String roomId = argument(call, "roomId", "$$required");
         String admin = argument(call, "admin", "$$required");
         try {
-          EMChatRoom room = EMClient.getInstance().chatroomManager().addChatRoomAdmin(roomId, admin);
+          EMChatRoom room = emClient.chatroomManager().addChatRoomAdmin(roomId, admin);
           resultRunOnUiThread(result, JSON.toJSONString(room), true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -2141,7 +2166,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String roomId = argument(call, "roomId", "$$required");
         String admin = argument(call, "admin", "$$required");
         try {
-          EMChatRoom room = EMClient.getInstance().chatroomManager().removeChatRoomAdmin(roomId, admin);
+          EMChatRoom room = emClient.chatroomManager().removeChatRoomAdmin(roomId, admin);
           resultRunOnUiThread(result, JSON.toJSONString(room), true);
         } catch (Throwable t) {
           t.printStackTrace();
@@ -2160,7 +2185,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String roomId = argument(call, "roomId", "$$required");
         List<String> members = argument(call, "members", new ArrayList<String>(0));
         try {
-          EMChatRoom room = EMClient.getInstance()
+          EMChatRoom room = emClient
                   .chatroomManager().blockChatroomMembers(roomId, members);
           resultRunOnUiThread(result, JSON.toJSONString(room), true);
         } catch (Throwable t) {
@@ -2180,7 +2205,7 @@ public class EasemobPlugin implements MethodCallHandler {
         String roomId = argument(call, "roomId", "$$required");
         List<String> members = argument(call, "members", new ArrayList<String>(0));
         try {
-          EMChatRoom room = EMClient.getInstance()
+          EMChatRoom room = emClient
                   .chatroomManager().unblockChatRoomMembers(roomId, members);
           resultRunOnUiThread(result, JSON.toJSONString(room), true);
         } catch (Throwable t) {
@@ -2201,7 +2226,7 @@ public class EasemobPlugin implements MethodCallHandler {
         int pageSize = argument(call, "pageSize", 20);
         int pageIndex = argument(call, "pageIndex", 1); // ####### start with 1???
         try {
-          List<String> res = EMClient.getInstance()
+          List<String> res = emClient
                   .chatroomManager().fetchChatRoomBlackList(roomId, pageIndex, pageSize);
           resultRunOnUiThread(result, res, true);
         } catch (Throwable t) {
@@ -2220,7 +2245,7 @@ public class EasemobPlugin implements MethodCallHandler {
       public void run() {
         String roomId = argument(call, "roomId", "$$required");
         try {
-          String res = EMClient.getInstance().chatroomManager().fetchChatRoomAnnouncement(roomId);
+          String res = emClient.chatroomManager().fetchChatRoomAnnouncement(roomId);
           resultRunOnUiThread(result, res, true);
         } catch (Throwable t) {
           t.printStackTrace();

@@ -4,7 +4,9 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:easemob/easemob.dart';
 
-void main() => runApp(MyApp());
+void main() {
+  runApp(MyApp());
+}
 
 class MyApp extends StatefulWidget {
   @override
@@ -65,7 +67,6 @@ class _MyAppState extends State<MyApp> {
                 print('logout: $res');
               },
             ),
-
             SizedBox(height: 12),
             FlatButton(
               child: Text('getAllContactsFromServer'),
@@ -86,26 +87,28 @@ class _MyAppState extends State<MyApp> {
             FlatButton(
               child: Text('loadMoreMsgFromDB'),
               onPressed: () async {
-                var res = await easemob.loadMoreMsgFromDB(conversationId: 'admin');
+                var res =
+                    await easemob.loadMoreMsgFromDB(conversationId: 'admin');
                 print('loadMoreMsgFromDB: $res');
               },
             ),
             SizedBox(height: 12),
             FlatButton(
               child: Text('sendMessage'),
-              onPressed: () async {
-                var res = await easemob.sendMessage(
-                  to: 'admin',
-                  content: 'Good',
-                  attributes: {
+              onPressed: () {
+                runZoned(() async {
+                  var res = await easemob
+                      .sendMessage(to: 'admin', content: 'Good', attributes: {
                     'attribute1': true,
                     'attribute2': 1,
                     'attribute3': 'string',
-                    'attribute4': { 'a': 'a' },
-                    'attribute5': [1,2,3],
-                  }
-                );
-                print('sendMessage: $res');
+                    'attribute4': {'a': 'a'},
+                    'attribute5': [1, 2, 3],
+                  });
+                  print('sendMessage: $res');
+                }, onError: (e, stack) {
+                  print('should: $e $stack');
+                });
               },
             ),
           ],
